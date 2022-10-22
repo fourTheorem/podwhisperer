@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  SageMaker Model configuration for Whisper
+
+Resources:
+  WhisperExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: whisper-sagemaker-execution-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:GetAuthorizationToken
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:StartImageScan
+                Resource:
+                  - !ImportValue whisper-model-image-repository-arn
+                  - '*'
+              - Effect: Allow
+                Action: 
+                  - logs:CreateLogDelivery
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DeleteLogDelivery
+                  - logs:Describe*
+                  - logs:GetLogDelivery
+                  - logs:GetLogEvents
+                  - logs:ListLogDeliveries
+                  - logs:PutLogEvents
+                  - logs:PutResourcePolicy
+                  - logs:UpdateLogDelivery
+                Resource:
+                  - '*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::pod-transcription-${AWS::AccountId}-${AWS::Region}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::pod-transcription-${AWS::AccountId}-${AWS::Region}'
+
+  WhisperModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      PrimaryContainer:
+        Image:
+          Fn::Join:
+            - ':'
+            - - !ImportValue whisper-model-image-repository-uri
+              - 'latest'
+      ExecutionRoleArn: !GetAtt WhisperExecutionRole.Arn

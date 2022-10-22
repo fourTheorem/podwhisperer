@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  ECR Repository resources for the Whisper Model in SageMaker
+
+Resources:
+  WhisperModelImageRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+Outputs:
+  WhisperModelImageRepositoryUri:
+    Description: Repository URI for the whisper model
+    Value: !GetAtt WhisperModelImageRepository.RepositoryUri
+    Export:
+      Name: whisper-model-image-repository-uri
+
+  WhisperModelImageRepositoryArn:
+    Description: ARN for the ECR Repository
+    Value: !GetAtt WhisperModelImageRepository.Arn
+    Export:
+      Name: whisper-model-image-repository-arn

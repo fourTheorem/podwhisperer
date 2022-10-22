@@ -1,0 +1,29 @@
+{
+  "configurations": [
+    {
+      "name": "Attach",
+      "port": 5858,
+      "request": "attach",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "type": "node"
+    },
+    {
+      "type": "aws-sam",
+      "request": "direct-invoke",
+      "name": "podwhisperer:AudioDownloaderFunction",
+      "invokeTarget": {
+        "target": "template",
+        "templatePath": "${workspaceFolder}/template.yaml",
+        "logicalId": "AudioDownloaderFunction",
+      },
+      "lambda": {
+        "payload": {
+          "episodeNumber": "9999"
+        },
+        "environmentVariables": {}
+      }
+    }
+  ]
+}

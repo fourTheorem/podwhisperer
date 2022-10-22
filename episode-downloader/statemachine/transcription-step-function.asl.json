@@ -1,0 +1,33 @@
+{
+  "Comment": "Anchor podcast episode downloader state machine",
+  "StartAt": "Download Audio",
+  "States": {
+    "Download Audio": {
+      "Type": "Task",
+      "Resource":"arn:aws:states:::lambda:invoke",
+      "InputPath": "$",
+      "OutputPath": "$",
+      "ResultPath": "$.AudioDownloadResult",
+      "Parameters": {
+        "FunctionName": "${AudioDownloaderFunctionArn}",
+        "Payload": {
+          "episodeNumber.$": "$.episodeNumber"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 3,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Next": "End"
+    },
+    "End": {
+      "Type": "Succeed"
+    }
+  }
+}
