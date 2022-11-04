@@ -1,0 +1,4 @@
+{
+  "manifestKey": "s3://pod-transcription-935672627075-eu-west-1/whisper-batch-manifests/e407657e-a230-4eb0-ab70-c64d5d70eb60.manifest",
+  "audioInputKey": "s3://pod-transcription-935672627075-eu-west-1/audio/sample2.mp3"
+}

@@ -1,0 +1,258 @@
+{
+  "Comment": "Audio transcription coordination",
+  "StartAt": "DefineDefaults",
+  "States": {
+    "DefineDefaults": {
+      "Type": "Pass",
+      "Next": "ApplyDefaults",
+      "ResultPath": "$.inputDefaults",
+      "Parameters": {
+        "ForceTranscribe": false,
+        "ForceWhisper": false
+      }
+    },
+    "ApplyDefaults": {
+      "Type": "Pass",
+      "Next": "Parallel",
+      "ResultPath": "$",
+      "Parameters": {
+        "inputs.$": "States.JsonMerge($.inputDefaults, $$.Execution.Input, false)"
+      }
+    },
+    "Parallel": {
+      "Type": "Parallel",
+      "Next": "Download Audio",
+      "Branches": [
+        {
+          "StartAt": "Force Whisper?",
+          "States": {
+            "Force Whisper?": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.inputs.ForceWhisper",
+                  "BooleanEquals": true,
+                  "Next": "CreateSageMakerManifest"
+                }
+              ],
+              "Default": "HeadObject Whisper Output"
+            },
+            "HeadObject Whisper Output": {
+              "Type": "Task",
+              "Parameters": {
+                "Bucket.$": "$.inputs.Bucket",
+                "Key.$": "$.inputs.WhisperOutputKey"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
+              "Next": "Whisper Complete",
+              "ResultPath": "$.WhisperHeadObjectResult",
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "S3.NoSuchKeyException"
+                  ],
+                  "ResultPath": "$.HeadObjectWhisperOutputCatch",
+                  "Comment": "NoSuchKey",
+                  "Next": "CreateSageMakerManifest"
+                }
+              ]
+            },
+            "CreateSageMakerManifest": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "ResultPath": "$.Manifest",
+              "Parameters": {
+                "FunctionName": "${ManifestCreatorFunctionArn}",
+                "Payload": {
+                  "manifestKey.$": "States.Format('whisper-batch-manifests/{}.manifest', $$.Execution.Name)",
+                  "audioInputKey.$": "$.inputs.Mp3InputKey"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "Next": "SageMaker CreateTransformJob",
+              "ResultSelector": {
+                "ManifestKey.$": "$.Payload.manifestKey"
+              }
+            },
+            "SageMaker CreateTransformJob": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sagemaker:createTransformJob.sync",
+              "Parameters": {
+                "TransformJobName.$": "$$.Execution.Name",
+                "ModelName": "{ModelName}",
+                "MaxConcurrentTransforms": 1,
+                "BatchStrategy": "SingleRecord",
+                "ModelClientConfig": {
+                  "InvocationsTimeoutInSeconds": 3600,
+                  "InvocationsMaxRetries": 0
+                },
+                "TransformInput": {
+                  "DataSource": {
+                    "S3DataSource": {
+                      "S3DataType": "ManifestFile",
+                      "S3Uri.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.Manifest.ManifestKey)"
+                    }
+                  },
+                  "ContentType": "application/json"
+                },
+                "TransformOutput": {
+                  "S3OutputPath.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.inputs.WhisperOutputKey)",
+                  "Accept": "application/json"
+                },
+                "TransformResources": {
+                  "InstanceCount": 1,
+                  "InstanceType": "ml.m4.xlarge"
+                }
+              },
+              "Next": "Whisper Complete"
+            },
+            "Whisper Complete": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Force Transcribe?",
+          "States": {
+            "Force Transcribe?": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.inputs.ForceTranscribe",
+                  "BooleanEquals": true,
+                  "Next": "StartTranscriptionJob"
+                }
+              ],
+              "Default": "HeadObject Transcribe Output"
+            },
+            "HeadObject Transcribe Output": {
+              "Type": "Task",
+              "Parameters": {
+                "Bucket.$": "$.inputs.Bucket",
+                "Key.$": "$.inputs.TranscribeOutputKey"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
+              "Next": "Transcribe Complete",
+              "ResultPath": "$.WhisperHeadObjectResult",
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "S3.NoSuchKeyException"
+                  ],
+                  "Comment": "NoSuchKey",
+                  "ResultPath": "$.HeadObjectTranscribeOutputCatch",
+                  "Next": "StartTranscriptionJob"
+                }
+              ]
+            },
+            "StartTranscriptionJob": {
+              "Type": "Task",
+              "Parameters": {
+                "Media": {
+                  "MediaFileUri.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.inputs.Mp3InputKey)"
+                },
+                "LanguageCode": "en-GB",
+                "OutputBucketName.$": "$.inputs.Bucket",
+                "OutputKey.$": "$.inputs.TranscribeOutputKey",
+                "TranscriptionJobName.$": "$$.Execution.Name",
+                "Settings": {
+                  "ShowSpeakerLabels": true,
+                  "MaxSpeakerLabels": 3
+                }
+              },
+              "Resource": "arn:aws:states:::aws-sdk:transcribe:startTranscriptionJob",
+              "Next": "Wait for Transcription Job",
+              "ResultSelector": {
+                "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName",
+                "TranscriptionJobStatus.$": "$.TranscriptionJob.TranscriptionJobStatus"
+              },
+              "ResultPath": "$.TranscriptionJob"
+            },
+            "Wait for Transcription Job": {
+              "Type": "Wait",
+              "Seconds": 10,
+              "Next": "GetTranscriptionJob"
+            },
+            "GetTranscriptionJob": {
+              "Type": "Task",
+              "Next": "Choice",
+              "Parameters": {
+                "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:transcribe:getTranscriptionJob",
+              "ResultSelector": {
+                "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName",
+                "TranscriptionJobStatus.$": "$.TranscriptionJob.TranscriptionJobStatus"
+              },
+              "ResultPath": "$.TranscriptionJob"
+            },
+            "Choice": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.TranscriptionJob.TranscriptionJobStatus",
+                  "StringEquals": "COMPLETED",
+                  "Next": "Transcribe Complete",
+                  "Comment": "Completed"
+                },
+                {
+                  "Variable": "$.TranscriptionJob",
+                  "StringMatches": "FAILED",
+                  "Comment": "Fail",
+                  "Next": "TranscribeJobFailed"
+                }
+              ],
+              "Default": "Wait for Transcription Job"
+            },
+            "Transcribe Complete": {
+              "Type": "Pass",
+              "End": true
+            },
+            "TranscribeJobFailed": {
+              "Type": "Fail"
+            }
+          }
+        }
+      ]
+    },
+    "Download Audio": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "InputPath": "$",
+      "OutputPath": "$",
+      "ResultPath": "$.AudioDownloadResult",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:eu-west-1:935672627075:function:podw-EpisodeDownloader-NLQ-AudioDownloaderFunction-pU5bLUHrkSQ1",
+        "Payload": {
+          "episodeNumber.$": "$.episodeNumber"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 3,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Next": "End"
+    },
+    "End": {
+      "Type": "Succeed"
+    }
+  }
+}

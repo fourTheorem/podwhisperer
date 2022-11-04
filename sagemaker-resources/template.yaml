@@ -68,3 +68,7 @@ Resources:
             - - !ImportValue whisper-model-image-repository-uri
               - 'latest'
       ExecutionRoleArn: !GetAtt WhisperExecutionRole.Arn
+
+Outputs:
+  ModelName:
+    Value: !GetAtt WhisperModel.ModelName

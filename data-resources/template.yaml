@@ -24,3 +24,7 @@ Resources:
       NotificationConfiguration:
         EventBridgeConfiguration:
           EventBridgeEnabled: true
+
+Outputs:
+  BucketName:
+    Value: !Ref TranscriptionBucket

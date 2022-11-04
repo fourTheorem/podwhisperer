@@ -39,8 +39,9 @@ def transformation():
     just means one prediction per line, since there"s a single column.
     """
     content_type = flask.request.content_type
-    data = flask.request.data.decode("utf-8")
-    logger.info(f"transformation: {content_type} {data}")
+    request_data = flask.request.data
+    logger.info(f"transformation: {content_type} {request_data}")
+    data = request_data.decode("utf-8")
 
     input_dict = None
 

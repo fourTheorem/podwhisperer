@@ -12,14 +12,13 @@ Resources:
       Type: AWS::Serverless::Application
       Properties:
         Location: ./sagemaker-resources/template.yaml
-      Parameters:
-        WhisperModelImageRepositoryUri: !GetAtt WhisperImage.Outputs.WhisperModelImageRepositoryUri
-        WhisperModelImageRepositoryArn: !GetAtt WhisperImage.Outputs.WhisperModelImageRepositoryArn
       DependsOn:
         - DataResources
 
-    EpisodeDownloader:
+    TranscriptOrchestration:
       Type: AWS::Serverless::Application
       Properties:
-        Location: ./episode-downloader/template.yaml
-      DependsOn: DataResources
+        Location: ./transcript-orchestration/template.yaml
+        Parameters:
+          BucketName: !GetAtt DataResources.Outputs.BucketName
+          ModelName: !GetAtt SageMakerResources.Outputs.ModelName

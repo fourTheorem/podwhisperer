@@ -5,7 +5,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { MockAgent } from 'undici'
 import { mockClient } from 'aws-sdk-client-mock'
 
-import { downloadAudio } from '../../download.js'
+import { downloadAudio } from '../../whisper.js'
 
 const TEST_RSS_PATH = resolve(__dirname, 'resources', 'rss.xml')
 const TEST_BUCKET = 'my-test-bucket'

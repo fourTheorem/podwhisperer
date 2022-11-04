@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform:
+  - AWS::Serverless-2016-10-31
+  - SlicWatch-v2
+
+Description: >
+  transcript-orchestration
+
+  Orchestration of Whisper and Polly transcripts
+
+Parameters:
+  BucketName:
+    Description: Name of S3 Bucket used for all input/output in the transcription process
+    Type: String
+  ModelName:
+    Description: The SageMaker model name for Whisper inference
+    Type: String
+
+Globals:
+  Function:
+    Tracing: Active
+    Environment:
+      Variables:
+        POWERTOOLS_METRICS_NAMESPACE: !Ref AWS::StackName
+  Api:
+    TracingEnabled: True
+
+Resources:
+  TranscriptionStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/transcription-step-function.asl.json
+      DefinitionSubstitutions:
+        ManifestCreatorFunctionArn: !GetAtt ManifestCreatorFunction.Arn
+        ModelName: !Ref ModelName
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TranscriptProcessorFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ManifestCreatorFunction
+        - S3CrudPolicy:
+            BucketName: !Ref BucketName
+        - Statement:
+            - Effect: Allow
+              Action:  # These actions required so Step Functions can create an EventBridge Rule to allow .sync invocations
+                - events:PutTargets
+                - events:PutRule 
+                - events:DescribeRule
+              Resource: !Sub 'arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctions*'
+            - Effect: Allow
+              Action:
+                - transcribe:StartTranscriptionJob
+                - transcribe:GetTranscriptionJob
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - sagemaker:AddTags
+                - sagemaker:CreateTransformJob
+                - sagemaker:StopTransformJob
+                - sagemaker:DescribeTransformJob
+              Resource: !Sub 'arn:${AWS::Partition}:sagemaker:${AWS::Region}:${AWS::AccountId}:transform-job/*'
+
+  TranscriptProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: pp.handleEvent
+      Runtime: nodejs16.x
+      Timeout: 900
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+          POWERTOOLS_SERVICE_NAME: TranscriptProcessor
+      Architectures:
+        - arm64
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - functions/transcript-processor/app.js
+
+  ManifestCreatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: manifest-creator.handleEvent
+      Runtime: nodejs16.x
+      Timeout: 10
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+          SAGEMAKER_INPUTS_PREFIX: whisper-batch-input
+          POWERTOOLS_SERVICE_NAME: ManifestCreator 
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref BucketName
+      Architectures:
+        - arm64
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - functions/manifest-creator.js
+
+Outputs:
+  StateMachineArn:
+    Value: !Ref TranscriptionStateMachine
