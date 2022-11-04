@@ -1,6 +1,9 @@
 import { logger, middify } from '../lib/lambda-common.js'
+import { TranscribeSpeakerSegment, WhisperSegment } from './types.js'
 import ReadableStream from 'readable-stream'
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { getS3JSON, putS3JSON } from './utils.js'
+import { merge } from './process-transcripts.js'
 
 const { BUCKET_NAME } = process.env
 if (!BUCKET_NAME) {
@@ -8,8 +11,9 @@ if (!BUCKET_NAME) {
 }
 
 type TranscriptEvent = {
-  episodeNumber: number,
-  whisperTranscriptKey: string
+  whisperOutputKey: string,
+  transcribeOutputKey: string,
+  processTranscriptKey: string
 }
 
 
@@ -22,21 +26,30 @@ const s3Client = new S3Client({})
  * @returns {Object} object - Object containing details of the stock buying transaction
  */
 export const handleEvent = middify(async (event: TranscriptEvent) => {
-  logger.info('Fetching whisper transcript', { event })
-  const transcriptResponse = await s3Client.send(new GetObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: event.whisperTranscriptKey
+  logger.info('Fetching whisper and transcribe outputs', { event })
+  const [whisperOutput, transcribeOutput] = await Promise.all([
+    getS3JSON(s3Client, BUCKET_NAME, event.whisperOutputKey),
+    getS3JSON(s3Client, BUCKET_NAME, event.transcribeOutputKey)
+  ])
+
+
+  const whisperSegments: WhisperSegment[] = whisperOutput.result.segments.map((segment: any) => ({
+    start: segment.start,
+    end: segment.end,
+    text: segment.text
   }))
 
-  const chunks = []
-  for await (const chunk of transcriptResponse.Body as any as ReadableStream) {
-    chunks.push(chunk)
-  }
+  const transcribeSegments: TranscribeSpeakerSegment[] = transcribeOutput.results.speaker_labels.segments.map((segment: any) => ({
+    start: segment.start_time,
+    end: segment.end_time,
+    speakerLabel: segment.speaker_label
+  }))
 
-  logger.info('Parsing transcript')
-  const whisperTranscript = JSON.parse(Buffer.concat(chunks).toString('utf-8'))
-  const segments = whisperTranscript.result.segments as TranscriptSegment[]
+  logger.info('Merging whisper and transcribe segments')
+  const mergedSegments = merge(whisperSegments, transcribeSegments)
 
-  logger.info('Transcript processed', { segments })
-  return segments
-}) as unknown as ((event: TranscriptEvent) => Promise<TranscriptSegment>) 
+  logger.info('Transcript processed')
+
+  await putS3JSON(s3Client, BUCKET_NAME, event.processTranscriptKey, mergedSegments)
+  return null
+}) as unknown as ((event: TranscriptEvent) => Promise<null>) 
