@@ -8,7 +8,8 @@
       "ResultPath": "$.inputDefaults",
       "Parameters": {
         "ForceTranscribe": false,
-        "ForceWhisper": false
+        "ForceWhisper": false,
+        "Mp3Key.$": "States.Format('{}.mp3', $.AudioInputKey)",
       }
     },
     "ApplyDefaults": {
@@ -64,8 +65,8 @@
               "Parameters": {
                 "FunctionName": "${ManifestCreatorFunctionArn}",
                 "Payload": {
-                  "manifestKey.$": "States.Format('whisper-batch-manifests/{}.manifest', $$.Execution.Name)",
-                  "audioInputKey.$": "$.inputs.Mp3InputKey"
+                  "id.$": "$$.Execution.Name",
+                  "audioInputKey.$": "$.inputs.AudioInputKey"
                 }
               },
               "Retry": [
@@ -132,7 +133,7 @@
                 {
                   "Variable": "$.inputs.ForceTranscribe",
                   "BooleanEquals": true,
-                  "Next": "StartTranscriptionJob"
+                  "Next": "Transcode Audio"
                 }
               ],
               "Default": "HeadObject Transcribe Output"
@@ -153,15 +154,43 @@
                   ],
                   "Comment": "NoSuchKey",
                   "ResultPath": "$.HeadObjectTranscribeOutputCatch",
-                  "Next": "StartTranscriptionJob"
+                  "Next": "Transcode Audio"
                 }
               ]
             },
-            "StartTranscriptionJob": {
+            "Transcode Audio": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "ResultPath": "$.TranscodeOutput",
+              "ResultSelector": {
+                "$": "$.Payload"
+              },
+              "Parameters": {
+                "FunctionName": "${TranscoderFunctionArn}",
+                "Payload": {
+                  "audioInputKey.$": "$.inputs.AudioInputKey",
+                  "audioOutputKey.$": "$.inputs.Mp3Key"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "Next": "Start Transcription Job"
+            },
+            "Start Transcription Job": {
               "Type": "Task",
               "Parameters": {
                 "Media": {
-                  "MediaFileUri.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.inputs.Mp3InputKey)"
+                  "MediaFileUri.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.inputs.Mp3Key)"
                 },
                 "LanguageCode": "en-GB",
                 "OutputBucketName.$": "$.inputs.Bucket",

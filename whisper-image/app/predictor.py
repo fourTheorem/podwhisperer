@@ -34,9 +34,7 @@ def execution_parameters():
 
 @app.route("/invocations", methods=["POST"])
 def transformation():
-    """Do an inference on a single batch of data. In this sample server, we take data as CSV, convert
-    it to a pandas data frame for internal use and then convert the predictions back to CSV (which really
-    just means one prediction per line, since there"s a single column.
+    """Do an inference on a single batch of data. 
     """
     content_type = flask.request.content_type
     request_data = flask.request.data
@@ -64,7 +62,7 @@ def transformation():
         model = whisper.load_model(model_name)
         logger.info(f"Transcribing {filename}")
         result = model.transcribe(filename)
-        logger.info(f"Transcription of {filename} copmlete")
+        logger.info(f"Transcription of {filename} complete")
     finally:
         os.unlink(filename)
 

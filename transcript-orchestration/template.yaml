@@ -32,6 +32,7 @@ Resources:
       DefinitionUri: statemachine/transcription-step-function.asl.json
       DefinitionSubstitutions:
         ManifestCreatorFunctionArn: !GetAtt ManifestCreatorFunction.Arn
+        TranscoderFunctionArn: !GetAtt TranscoderFunction.Arn
         ModelName: !Ref ModelName
       Policies:
         - LambdaInvokePolicy:
@@ -64,7 +65,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Handler: pp.handleEvent
+      Handler: app.handleEvent
       Runtime: nodejs16.x
       Timeout: 900
       Environment:
@@ -81,6 +82,31 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - functions/transcript-processor/app.js
+
+  TranscoderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.handleEvent
+      Runtime: nodejs16.x
+      Timeout: 120
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+          POWERTOOLS_SERVICE_NAME: Transcoder
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref BucketName
+      Architectures:
+        - arm64
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - functions/audio-transcoder/app.js
 
   ManifestCreatorFunction:
     Type: AWS::Serverless::Function
