@@ -12,13 +12,7 @@ type TranscriptEvent = {
   whisperTranscriptKey: string
 }
 
-type TranscriptSegment = {
-  id: number,    // 10
-  seek: number,  // 5576
-  start: number, // 55.76
-  end: number,   // 60.72
-  text: string   // ' Hello everyone and welcome to our podcast.'
-}
+
 
 const s3Client = new S3Client({})
 

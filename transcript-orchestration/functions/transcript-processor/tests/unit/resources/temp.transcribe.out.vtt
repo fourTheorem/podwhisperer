@@ -1,0 +1,2068 @@
+WEBVTT
+
+0
+00:00:00.000 --> 00:00:03.710
+if you're thinking of using an external CCD tool to deploy to AWS,
+
+1
+00:00:03.710 --> 00:00:05.790
+you're probably wondering how to securely connect
+
+2
+00:00:05.790 --> 00:00:08.020
+your pipelines to an AWS account,
+
+3
+00:00:08.080 --> 00:00:10.510
+you could create a user for your CCD tool of
+
+4
+00:00:10.510 --> 00:00:13.550
+choice and copy some art coded credentials into it.
+
+5
+00:00:13.630 --> 00:00:14.640
+But let's face it,
+
+6
+00:00:14.650 --> 00:00:18.630
+this one doesn't feel really the right way or at least not the most secure approach.
+
+7
+00:00:18.860 --> 00:00:21.100
+In the previous episode we discussed our AWS and
+
+8
+00:00:21.100 --> 00:00:23.200
+Guitar solved this problem by using the I.
+
+9
+00:00:23.200 --> 00:00:23.520
+D. C.
+
+10
+00:00:23.520 --> 00:00:26.800
+Identity providers and this seems to be a much better approach to
+
+11
+00:00:26.800 --> 00:00:29.720
+this particular problem or at least a much more secure approach.
+
+12
+00:00:29.730 --> 00:00:33.750
+My name is luciano and today I'm joined by Owen and in this episode of AWS bites,
+
+13
+00:00:33.750 --> 00:00:35.920
+we'll try to demystify the secrets of our I.
+
+14
+00:00:35.920 --> 00:00:39.740
+D. C. Identity providers and understand how they really work under the hood.
+
+15
+00:00:47.910 --> 00:00:50.350
+Let's start by summarizing that. Use case again.
+
+16
+00:00:50.350 --> 00:00:54.590
+So we have some process running outside of AWS for instance,
+
+17
+00:00:54.600 --> 00:00:57.030
+we have a pipeline running on github actions.
+
+18
+00:00:57.050 --> 00:00:59.760
+This process needs to interact with resources on AWS,
+
+19
+00:00:59.770 --> 00:01:02.260
+like making Api calls to AWS to create
+
+20
+00:01:02.260 --> 00:01:04.819
+resources so it needs some sort of authentication.
+
+21
+00:01:04.930 --> 00:01:10.290
+Classic way of doing that would be to create a user in I am create a role
+
+22
+00:01:10.290 --> 00:01:13.190
+associated with that user with the right permissions
+
+23
+00:01:13.200 --> 00:01:16.040
+and the you generation access key secret access key
+
+24
+00:01:16.420 --> 00:01:18.470
+and those are long lived credentials.
+
+25
+00:01:18.470 --> 00:01:21.490
+So at this point you could put those credentials into your pipeline.
+
+26
+00:01:21.500 --> 00:01:23.720
+A lot of people might have done this before you
+
+27
+00:01:23.720 --> 00:01:26.110
+put it in some secret store like github actions.
+
+28
+00:01:26.120 --> 00:01:27.260
+Secret store
+
+29
+00:01:27.430 --> 00:01:30.220
+and use those long lived credentials to interact with AWS
+
+30
+00:01:30.220 --> 00:01:32.660
+with the cli or one of the SDK s.
+
+31
+00:01:33.780 --> 00:01:35.410
+Now, the problem with that approach,
+
+32
+00:01:35.420 --> 00:01:39.120
+as we may know by now is that long lived credentials might easily be leaked and
+
+33
+00:01:39.120 --> 00:01:43.990
+then it's very hard to detect that and really work against that sort of attack.
+
+34
+00:01:44.000 --> 00:01:45.980
+So you can allow an attacker to
+
+35
+00:01:45.980 --> 00:01:48.240
+impersonate your pipeline and execute malicious code.
+
+36
+00:01:48.760 --> 00:01:49.210
+Of course,
+
+37
+00:01:49.210 --> 00:01:52.940
+pipelines content to have very extensive permissions because they have to be able
+
+38
+00:01:52.940 --> 00:01:56.770
+to create and delete important resources in your account and update your code.
+
+39
+00:01:56.780 --> 00:01:59.040
+So this is a really dangerous use case.
+
+40
+00:01:59.050 --> 00:02:02.600
+So the better use better alternative here is
+
+41
+00:02:02.600 --> 00:02:05.570
+to use an open ID connect identity provider.
+
+42
+00:02:05.620 --> 00:02:08.940
+So more specifically configuring AWS to trust,
+
+43
+00:02:08.949 --> 00:02:13.020
+Get over as an identity provider using the O I D C protocol,
+
+44
+00:02:13.270 --> 00:02:18.660
+luciano, do you feel like you could describe how I D C works in broad strokes?
+
+45
+00:02:19.380 --> 00:02:21.450
+Yeah, I'll try my best to do that.
+
+46
+00:02:21.450 --> 00:02:25.240
+But before I do that, there is a link that we're gonna have in the show notes,
+
+47
+00:02:25.250 --> 00:02:27.330
+which is actually the get up documentation that
+
+48
+00:02:27.330 --> 00:02:29.860
+explains really well how all of that works.
+
+49
+00:02:29.860 --> 00:02:31.120
+And there are illustrations.
+
+50
+00:02:31.130 --> 00:02:33.890
+So if everything we say today is not 100% clear,
+
+51
+00:02:33.900 --> 00:02:36.690
+we really recommend to check out this particular article
+
+52
+00:02:37.260 --> 00:02:40.140
+so that the first thing to clarify is that there are two main
+
+53
+00:02:40.150 --> 00:02:44.040
+entities here and we are talking about AWS itself and get up.
+
+54
+00:02:44.050 --> 00:02:47.320
+So we need to figure out how to make them talk to each other
+
+55
+00:02:47.320 --> 00:02:51.470
+and how to create this kind of trust relationship and in the open I.
+
+56
+00:02:51.470 --> 00:02:55.310
+D connect lingo, there are two pieces of terminology,
+
+57
+00:02:55.320 --> 00:02:58.220
+identity provider and service provider in this case,
+
+58
+00:02:58.220 --> 00:03:02.360
+Get up is the identity provider, NWS is the service provider.
+
+59
+00:03:02.360 --> 00:03:03.330
+So get up.
+
+60
+00:03:03.480 --> 00:03:07.700
+It's kind of the one providing users while AWS is
+
+61
+00:03:07.700 --> 00:03:09.810
+the one providing a specific service to the user.
+
+62
+00:03:09.820 --> 00:03:15.220
+And this is where I was a little bit confused at first because I
+
+63
+00:03:15.230 --> 00:03:18.510
+don't think this is the most intuitive use case to understand this difference.
+
+64
+00:03:18.520 --> 00:03:22.970
+In fact get up doesn't really have a concept of users for AWS itself.
+
+65
+00:03:22.980 --> 00:03:24.390
+Like get up doesn't really
+
+66
+00:03:24.620 --> 00:03:25.950
+have a database,
+
+67
+00:03:25.960 --> 00:03:29.760
+let's say where there is a mapping between particular user names and
+
+68
+00:03:29.760 --> 00:03:33.420
+particular roles like all that stuff actually still lives in the WS.
+
+69
+00:03:33.430 --> 00:03:36.130
+So we'll see how this can be a little bit confusing
+
+70
+00:03:36.130 --> 00:03:38.540
+and hopefully we'll try to explain that a little bit better.
+
+71
+00:03:39.340 --> 00:03:44.530
+And another thing to keep in mind to really understand why there is this
+
+72
+00:03:44.530 --> 00:03:49.070
+a little bit of a blurry definition between what are the you who is
+
+73
+00:03:49.070 --> 00:03:52.200
+providing the users and who is providing the services is because this is not
+
+74
+00:03:52.200 --> 00:03:56.840
+like a user facing integration but it's more of a service to service integration.
+
+75
+00:03:56.850 --> 00:04:00.630
+So in a way we are connecting to services and the definition of a user,
+
+76
+00:04:00.630 --> 00:04:03.520
+there is not like the canonical one, I will say.
+
+77
+00:04:04.350 --> 00:04:07.920
+So in reality the way we could see that is that AWS
+
+78
+00:04:07.920 --> 00:04:13.330
+is providing a particular role and AWS is basically trusting get up to
+
+79
+00:04:13.330 --> 00:04:17.839
+generate some sort of credential that will allow get up to assume
+
+80
+00:04:17.839 --> 00:04:21.209
+that role and we'll try to explain better all of that works.
+
+81
+00:04:22.060 --> 00:04:22.830
+So yeah,
+
+82
+00:04:22.830 --> 00:04:25.010
+the first thing that needs to happen in this particular
+
+83
+00:04:25.020 --> 00:04:28.940
+scenario is that we'll need to tell AWS to trust,
+
+84
+00:04:28.940 --> 00:04:29.320
+get up.
+
+85
+00:04:29.320 --> 00:04:33.040
+So we need to create a trust relationship and once trust is established again,
+
+86
+00:04:33.040 --> 00:04:34.900
+get up can just say okay,
+
+87
+00:04:34.910 --> 00:04:38.530
+there is a token that proves that I am that the thing you trusted
+
+88
+00:04:38.530 --> 00:04:44.950
+before now give me access to this particular round and that access is safer than
+
+89
+00:04:45.180 --> 00:04:47.520
+permanent credential scenario because that kind of
+
+90
+00:04:47.520 --> 00:04:50.480
+accent is using temporary credentials using STS.
+
+91
+00:04:50.490 --> 00:04:54.080
+So those credentials will be short lived and the chance of
+
+92
+00:04:54.080 --> 00:04:57.940
+leaking them is much I guess is much harder to,
+
+93
+00:04:57.950 --> 00:04:59.780
+even if they are leaked is much harder to take
+
+94
+00:04:59.780 --> 00:05:02.450
+advantage of these credentials or at least not long term.
+
+95
+00:05:02.960 --> 00:05:04.300
+Okay, that sounds really good.
+
+96
+00:05:04.300 --> 00:05:08.820
+So you've got the identity provider, you've got AWS as a service provider.
+
+97
+00:05:08.870 --> 00:05:11.890
+We've mentioned STS and short term credentials I
+
+98
+00:05:11.890 --> 00:05:14.120
+think a few times in various different episodes.
+
+99
+00:05:14.350 --> 00:05:15.250
+So how do you start?
+
+100
+00:05:15.250 --> 00:05:17.380
+And how do you create the trust relationship between
+
+101
+00:05:17.380 --> 00:05:20.400
+the identity provider and AWS as a service provider?
+
+102
+00:05:20.400 --> 00:05:21.000
+What's your
+
+103
+00:05:21.390 --> 00:05:24.800
+-- what are the steps there? Yeah,
+-- this is something that I've done only manually.
+
+104
+00:05:24.800 --> 00:05:26.240
+I don't know if there is a way to actually
+
+105
+00:05:26.240 --> 00:05:28.790
+also make that true terra form or something else?
+
+106
+00:05:28.970 --> 00:05:30.570
+Probably there is I'm going to guess.
+
+107
+00:05:30.570 --> 00:05:34.340
+But if you want to do it manually is kind of one off type of thing
+
+108
+00:05:34.510 --> 00:05:38.530
+for for most at least for for creating that first trust,
+
+109
+00:05:38.540 --> 00:05:40.790
+then you can probably automate the creation of roles.
+
+110
+00:05:40.800 --> 00:05:44.260
+But just to do that, what you can do, you can just go to the I AM portal
+
+111
+00:05:44.390 --> 00:05:46.990
+and there is a section there called identity providers.
+
+112
+00:05:47.000 --> 00:05:51.690
+And if you go in there you can create a new identity provider and once you go in
+
+113
+00:05:51.690 --> 00:05:54.260
+that interface it allows you to select different kinds
+
+114
+00:05:54.260 --> 00:05:56.400
+of identity providers and one of which is oh,
+
+115
+00:05:56.400 --> 00:05:56.870
+I D C.
+
+116
+00:05:56.870 --> 00:05:58.750
+Open Interconnect identity provider
+
+117
+00:05:59.260 --> 00:06:02.030
+and it gives you a kind of a form and you
+
+118
+00:06:02.030 --> 00:06:05.650
+need to fill that form with certain kind of information that allows
+
+119
+00:06:05.940 --> 00:06:09.640
+us to recognize, get up actions as an identity provider.
+
+120
+00:06:10.190 --> 00:06:12.720
+And the first thing that you need to provide is a um well this is
+
+121
+00:06:12.720 --> 00:06:16.330
+the I D C U R L and this is actually an interesting thing.
+
+122
+00:06:16.330 --> 00:06:20.100
+I don't know if anyone is familiar with the I D C.
+
+123
+00:06:20.110 --> 00:06:26.380
+It's kind of an extension of out to that also specifies in a much stricter way,
+
+124
+00:06:26.390 --> 00:06:27.050
+how the U.
+
+125
+00:06:27.050 --> 00:06:28.970
+R. L structure should be made out.
+
+126
+00:06:28.970 --> 00:06:33.270
+The talking should be created while all out to was much more liberal
+
+127
+00:06:33.270 --> 00:06:37.130
+and every out to provider could be implemented in a much different way
+
+128
+00:06:37.450 --> 00:06:40.330
+in. Oh, I? D see. You literally just need to know that one U. L.
+
+129
+00:06:40.330 --> 00:06:42.070
+And everything else is standardized.
+
+130
+00:06:42.080 --> 00:06:45.630
+So that's why we can afford to specify only one particular. Um
+
+131
+00:06:46.160 --> 00:06:48.620
+The other field that we need to populate in
+
+132
+00:06:48.620 --> 00:06:51.870
+this form is certainly called audience an audience.
+
+133
+00:06:51.880 --> 00:06:55.010
+I don't think it's extremely important here because I think the
+
+134
+00:06:55.200 --> 00:06:58.910
+action can customize the audience on demand if you want to.
+
+135
+00:06:58.920 --> 00:07:01.990
+But the standard convention that you find in the documentation is
+
+136
+00:07:01.990 --> 00:07:05.140
+to set that to sts dot amazon AWS dot com.
+
+137
+00:07:05.400 --> 00:07:08.330
+And this is basically a value that will be available
+
+138
+00:07:08.330 --> 00:07:10.610
+in your tokens and that you need to check to
+
+139
+00:07:10.610 --> 00:07:14.270
+make sure that get up generated the talking for the
+
+140
+00:07:14.270 --> 00:07:17.360
+right application in this case integration with the WS.
+
+141
+00:07:18.420 --> 00:07:21.300
+-- And then the
+-- last thing that you need to do is to
+
+142
+00:07:21.990 --> 00:07:24.910
+past the time print of the TLS certificate.
+
+143
+00:07:24.920 --> 00:07:27.580
+This is not really something that you need to copy paste.
+
+144
+00:07:27.580 --> 00:07:30.880
+You just need to click a button in the UI and AWS will
+
+145
+00:07:30.880 --> 00:07:34.800
+download the time print of the TLS certificate of the connection to that um
+
+146
+00:07:35.090 --> 00:07:38.040
+that we specified as the ibc identity provider.
+
+147
+00:07:38.380 --> 00:07:41.550
+And this is important because we need to make sure that in the future
+
+148
+00:07:41.550 --> 00:07:47.550
+when AWS connects again to get abductions is still connecting to the same service,
+
+149
+00:07:47.550 --> 00:07:51.230
+so to speak, that we have the trust is given by the TLS certificate.
+
+150
+00:07:51.240 --> 00:07:54.590
+So if the TLS certificate changes most likely
+
+151
+00:07:54.590 --> 00:07:56.840
+we want to revisit the trust relationship and make
+
+152
+00:07:56.840 --> 00:08:00.940
+sure we are still talking with the right provider at the other end of the line.
+
+153
+00:08:01.800 --> 00:08:03.200
+Okay. That's interesting to know.
+
+154
+00:08:03.200 --> 00:08:05.840
+So this trust relationship can expire so you need
+
+155
+00:08:05.840 --> 00:08:07.980
+to have some process in place to make sure
+
+156
+00:08:07.980 --> 00:08:10.850
+you're keeping on top of that and make sure
+
+157
+00:08:10.850 --> 00:08:13.420
+you don't you renew before these things expire?
+
+158
+00:08:13.420 --> 00:08:14.060
+Potentially
+
+159
+00:08:14.700 --> 00:08:17.660
+I did actually just check there if it was possible to create all
+
+160
+00:08:17.660 --> 00:08:21.000
+of this in cloud formation and terra form and there's a terra form,
+
+161
+00:08:21.000 --> 00:08:21.650
+plug in
+
+162
+00:08:21.790 --> 00:08:24.560
+uniform resource for this and there's also a cloud formation
+
+163
+00:08:24.570 --> 00:08:26.540
+o A D C provided resources looks like Oh,
+
+164
+00:08:26.540 --> 00:08:28.940
+everything that you just said is also possible there.
+
+165
+00:08:28.950 --> 00:08:31.760
+I think you just have to figure out then how are you going to get the thumbprints into
+
+166
+00:08:31.760 --> 00:08:33.700
+your infrastructure as code template if you're going to
+
+167
+00:08:33.700 --> 00:08:36.600
+hard code those or do something maybe more dynamic.
+
+168
+00:08:37.190 --> 00:08:43.130
+So you've now got this trust relationship. So that's step one. How do we link that?
+
+169
+00:08:43.140 --> 00:08:45.960
+What's the next step in linking that through to permissions in AWS.
+
+170
+00:08:46.000 --> 00:08:51.560
+So the next step is to create a trust policy in in AWS.
+
+171
+00:08:51.570 --> 00:08:57.340
+And the trust policy needs to have certain particular fields to make sure
+
+172
+00:08:57.340 --> 00:09:00.280
+that you are kind of locking down the security as much as possible.
+
+173
+00:09:00.280 --> 00:09:04.370
+So you're not basically allowing any anyone or anything to assume that the role
+
+174
+00:09:04.620 --> 00:09:06.650
+you just want to get up action and maybe
+
+175
+00:09:06.650 --> 00:09:09.460
+a specific workflow even to assume that particular road.
+
+176
+00:09:09.470 --> 00:09:14.100
+So that I suppose at this point you should have in mind exactly the kind of pipeline
+
+177
+00:09:14.100 --> 00:09:16.430
+you are going to build in guitar and
+
+178
+00:09:16.430 --> 00:09:18.620
+what kind of permission that people would require.
+
+179
+00:09:19.130 --> 00:09:22.180
+And you create this trust policy were specified that
+
+180
+00:09:22.180 --> 00:09:25.340
+the principle for the trust policy is the A.
+
+181
+00:09:25.340 --> 00:09:25.670
+R. N.
+
+182
+00:09:25.670 --> 00:09:28.360
+Of the am identity provider that we just created,
+
+183
+00:09:28.370 --> 00:09:32.510
+then the action is sts assume role with web identity.
+
+184
+00:09:32.870 --> 00:09:35.320
+And then we can specify a bunch of conditions.
+
+185
+00:09:35.330 --> 00:09:39.740
+We want to check that the audience is actually the one we specified sts amazon
+
+186
+00:09:40.050 --> 00:09:40.710
+dot com.
+
+187
+00:09:40.720 --> 00:09:46.410
+But also if we want to lock down the role to a particular get up action workflow,
+
+188
+00:09:46.420 --> 00:09:51.240
+we can also specify another condition saying that the subject which is going
+
+189
+00:09:51.240 --> 00:09:55.370
+to be a field in the talk and specifying exactly the workflow that triggered
+
+190
+00:09:55.560 --> 00:09:58.910
+that particular execution matches exactly your expectation.
+
+191
+00:09:58.910 --> 00:10:00.240
+So let's say that you have,
+
+192
+00:10:00.250 --> 00:10:03.500
+I don't know a project called e commerce and that project as
+
+193
+00:10:03.500 --> 00:10:07.020
+a particular repository and a particular workflow in the production called,
+
+194
+00:10:07.020 --> 00:10:08.430
+I don't know, build and publish,
+
+195
+00:10:08.440 --> 00:10:12.960
+you will have a way to say assume this role only if the
+
+196
+00:10:12.970 --> 00:10:19.320
+pipeline was the e commerce and the workflow was built and deployed.
+
+197
+00:10:20.330 --> 00:10:24.280
+So you can create a condition to limit the kind of thing at that point.
+
+198
+00:10:24.280 --> 00:10:29.350
+You have distrust policy and you can attach um that allows you to assume
+
+199
+00:10:29.350 --> 00:10:32.820
+a role and that role can have specific permissions like I don't know,
+
+200
+00:10:32.830 --> 00:10:35.210
+you'll be able to create a bucket, you'll be able to
+
+201
+00:10:35.390 --> 00:10:37.890
+deploy a lambda and all the things that
+
+202
+00:10:37.890 --> 00:10:40.420
+you need to do for deploying your application.
+
+203
+00:10:40.430 --> 00:10:43.000
+We mentioned you mentioned the token here
+
+204
+00:10:43.000 --> 00:10:44.840
+and you mentioned things like the audience.
+
+205
+00:10:44.910 --> 00:10:48.910
+The subject should we talk about the technology underpinning this
+
+206
+00:10:48.910 --> 00:10:52.450
+which people may have covered before various different authentication,
+
+207
+00:10:52.450 --> 00:10:53.300
+authorization flows.
+
+208
+00:10:53.310 --> 00:10:58.370
+-- What is the JWT? What do we need to know about it in this context?
+-- Mhm Yeah.
+
+209
+00:10:58.380 --> 00:11:01.990
+One of the things that we mentioned before is that Oh I D C. Standard diocese.
+
+210
+00:11:01.990 --> 00:11:03.400
+Also the format of a token,
+
+211
+00:11:03.620 --> 00:11:08.250
+a token can really be anything like any string that you can verify and make sure
+
+212
+00:11:08.260 --> 00:11:13.490
+it is actually trustworthy because I don't know maybe you can do an api call and get
+
+213
+00:11:13.500 --> 00:11:15.640
+that that's token is reliable from the api
+
+214
+00:11:15.640 --> 00:11:19.240
+call or the token itself is somehow signed and
+
+215
+00:11:19.240 --> 00:11:21.380
+you can trust that that senior sure gives
+
+216
+00:11:21.380 --> 00:11:25.340
+you a guarantee that somebody trustworthy generated that token
+
+217
+00:11:25.810 --> 00:11:27.760
+And in the case of I O I D C.
+
+218
+00:11:27.760 --> 00:11:31.660
+This is kind of the the choice they went for signed tokens and
+
+219
+00:11:31.660 --> 00:11:36.370
+the technology of choice is jWT Jason web token and I have written
+
+220
+00:11:36.370 --> 00:11:39.560
+an article a couple of years ago with some illustration that tried to
+
+221
+00:11:39.560 --> 00:11:44.620
+describe in brief like what's the structure and how they are generated,
+
+222
+00:11:44.620 --> 00:11:45.750
+how they are validated.
+
+223
+00:11:45.760 --> 00:11:48.840
+So we'll have a link to that article if you want to go deeper.
+
+224
+00:11:48.850 --> 00:11:51.860
+But the summary of that is that a JWT token
+
+225
+00:11:51.860 --> 00:11:54.730
+is a string made of three parts separated by a dot
+
+226
+00:11:55.070 --> 00:11:58.180
+and those three parts are a header, a payload and a signature.
+
+227
+00:11:58.190 --> 00:12:01.790
+They are all encoded in base 64 U R L and
+
+228
+00:12:01.790 --> 00:12:06.110
+if you basically split the three parts and do a base 64
+
+229
+00:12:06.350 --> 00:12:10.310
+decode the header and the payload are actually two Jason objects.
+
+230
+00:12:10.320 --> 00:12:14.670
+Jason encoded objects and the payload can contain
+
+231
+00:12:14.680 --> 00:12:17.500
+properties that are generally called claims and those
+
+232
+00:12:17.500 --> 00:12:20.120
+properties are they can be whatever you want
+
+233
+00:12:20.120 --> 00:12:22.340
+but there are some standards for instance,
+
+234
+00:12:22.350 --> 00:12:24.830
+audience is one of those A U D
+
+235
+00:12:25.040 --> 00:12:27.430
+and general represents the particular application
+
+236
+00:12:27.430 --> 00:12:29.240
+for which the token was generated.
+
+237
+00:12:29.250 --> 00:12:32.890
+So if you have an identity provider can generate tokens for multiple applications,
+
+238
+00:12:32.900 --> 00:12:36.000
+you can use the audience to make sure that you are receiving
+
+239
+00:12:36.000 --> 00:12:38.720
+a token that is meant to be used in a particular application.
+
+240
+00:12:38.740 --> 00:12:41.240
+Then there are other claims like time validity.
+
+241
+00:12:41.250 --> 00:12:45.230
+Don't use this token before a certain date. Don't use this token after a certain date
+
+242
+00:12:45.420 --> 00:12:48.750
+or there are information about the issue, for instance,
+
+243
+00:12:48.760 --> 00:12:52.370
+which identity provider created that token.
+
+244
+00:12:52.380 --> 00:12:52.980
+And again,
+
+245
+00:12:52.980 --> 00:12:56.090
+if you have an application that accepts token from multiple identity providers,
+
+246
+00:12:56.090 --> 00:12:59.170
+that's an important information because it also tells you
+
+247
+00:12:59.180 --> 00:13:01.860
+how to check the senior for that particular token
+
+248
+00:13:02.360 --> 00:13:04.270
+and if you want to check the senior show you also
+
+249
+00:13:04.270 --> 00:13:07.570
+need to know which key was used to sign the token.
+
+250
+00:13:07.570 --> 00:13:12.080
+So the idea of the key is another field that you will generally find in
+
+251
+00:13:12.080 --> 00:13:17.720
+the payload and in the case of github actions there is also subject which is
+
+252
+00:13:18.130 --> 00:13:22.640
+in that case will contain a reference to the workflow that generated the target.
+
+253
+00:13:22.690 --> 00:13:25.900
+Another information that you can use and is the information we can use in our
+
+254
+00:13:25.900 --> 00:13:29.990
+roles to limit the fact that only the
+
+255
+00:13:29.990 --> 00:13:32.260
+particular workflow can assume a particular role.
+
+256
+00:13:32.270 --> 00:13:35.740
+One interesting thing is that you might wonder how the senior sure thing works
+
+257
+00:13:35.740 --> 00:13:39.820
+because it's a little bit magic if you never really looked under the hood
+
+258
+00:13:40.090 --> 00:13:43.610
+but it works by using actually JWT is a little bit open.
+
+259
+00:13:43.620 --> 00:13:47.760
+You can use both symmetric and asymmetric encryption so you could have either just a
+
+260
+00:13:47.760 --> 00:13:53.230
+shared key to sign the token or you can have public and private key.
+
+261
+00:13:53.240 --> 00:13:57.330
+Of course in the case of O I D C you want to have public
+
+262
+00:13:57.330 --> 00:14:02.020
+and private key because you you don't want to share a secret key between get UP
+
+263
+00:14:02.330 --> 00:14:06.370
+and AWS because then it means everyone will know that secret key
+
+264
+00:14:06.370 --> 00:14:09.870
+and everyone will be able to create sign tokens instead when you use
+
+265
+00:14:09.870 --> 00:14:13.440
+a model with a symmetric keys you will have a public key that
+
+266
+00:14:13.440 --> 00:14:16.930
+allows you to validate tokens and that can be anyone can read that
+
+267
+00:14:17.570 --> 00:14:20.550
+and the private key is only known to get up in this case.
+
+268
+00:14:20.560 --> 00:14:23.910
+And it's it means that only get up will be able to sign
+
+269
+00:14:24.050 --> 00:14:25.090
+these tokens.
+
+270
+00:14:25.100 --> 00:14:31.130
+So in reality you almost never want to use the symmetric key these days,
+
+271
+00:14:31.140 --> 00:14:34.190
+-- you always go for like public and private keys
+-- given that
+
+272
+00:14:34.190 --> 00:14:37.640
+we've got this trust relationship and we've got the role created and
+
+273
+00:14:37.640 --> 00:14:40.460
+we've set the trust policy in the road so that it
+
+274
+00:14:40.460 --> 00:14:45.650
+can only be assumed by principles coming from this identity provider.
+
+275
+00:14:46.240 --> 00:14:46.940
+What's the next?
+
+276
+00:14:46.940 --> 00:14:50.000
+How do we get that identity provider being get
+
+277
+00:14:50.000 --> 00:14:54.310
+up and specifically our pipelines to get credentials,
+
+278
+00:14:54.320 --> 00:14:57.260
+so to assume a role or whatever it is that allows
+
+279
+00:14:57.260 --> 00:15:00.330
+us to enter the AWS world and make API calls.
+
+280
+00:15:01.180 --> 00:15:01.530
+Yeah.
+
+281
+00:15:01.540 --> 00:15:02.950
+So in this part,
+
+282
+00:15:02.950 --> 00:15:06.370
+I think there is a little bit of speculation because some
+
+283
+00:15:06.370 --> 00:15:08.930
+parts are well known and well described and other ones,
+
+284
+00:15:08.930 --> 00:15:13.100
+we can only assume what AWS is doing to actually validate the token based on the I.
+
+285
+00:15:13.100 --> 00:15:13.960
+D C. Standard.
+
+286
+00:15:13.970 --> 00:15:17.200
+So I'm gonna try to come up with a narrative but
+
+287
+00:15:17.200 --> 00:15:21.400
+it might not be 100% truthful to what AWS actually does.
+
+288
+00:15:21.410 --> 00:15:25.770
+But basically the point is that at some point we start a workflow and get up action
+
+289
+00:15:26.040 --> 00:15:30.230
+and get up is kind of an event based in that sense saying that every
+
+290
+00:15:30.230 --> 00:15:31.430
+time there is a new workflow it's
+
+291
+00:15:31.430 --> 00:15:34.410
+gonna generate a token for that particular workflow
+
+292
+00:15:34.860 --> 00:15:39.370
+and with that token you in your workflow, you might decide to use it or not.
+
+293
+00:15:39.380 --> 00:15:42.260
+But of course if you're going to interact with the Ws you might
+
+294
+00:15:42.260 --> 00:15:46.190
+want to use that token and exchange it for AWS temporary credentials.
+
+295
+00:15:46.200 --> 00:15:48.950
+And that's something that can be done either manually.
+
+296
+00:15:48.960 --> 00:15:51.120
+If you want to write all that code with the Cli
+
+297
+00:15:51.120 --> 00:15:53.900
+or SDK or if you want to make your life easier,
+
+298
+00:15:53.910 --> 00:15:57.830
+there is an action that is provided by AWS and you can just import that action into
+
+299
+00:15:57.830 --> 00:16:00.750
+your workflow and configure it to assume the particular
+
+300
+00:16:00.750 --> 00:16:04.170
+role that you have in your AWS account.
+
+301
+00:16:04.540 --> 00:16:07.350
+And what happens behind the scene in that action is
+
+302
+00:16:07.350 --> 00:16:10.200
+that it's basically fetching the token generated by the gate
+
+303
+00:16:10.200 --> 00:16:14.180
+up workflow and then making an sts called assume role
+
+304
+00:16:14.180 --> 00:16:17.240
+with web identity and pass that talking to AWS.
+
+305
+00:16:17.250 --> 00:16:20.540
+Now this is where it gets a little bit speculative because we'll
+
+306
+00:16:20.540 --> 00:16:25.720
+need to imagine what AWS will do to actually trust that particular token
+
+307
+00:16:26.000 --> 00:16:29.450
+because the token as we understood this like a string where you
+
+308
+00:16:29.450 --> 00:16:31.860
+can do some decoding and get some information out of it.
+
+309
+00:16:31.870 --> 00:16:34.310
+And then there is a senior shirt that gives some sort
+
+310
+00:16:34.310 --> 00:16:37.190
+of trust that it was generated by a trusted source.
+
+311
+00:16:37.200 --> 00:16:40.480
+So what the Ws should do in my opinion a list is that
+
+312
+00:16:40.480 --> 00:16:42.660
+first of all it needs to check if the token is well formed.
+
+313
+00:16:42.670 --> 00:16:45.250
+So is it a valid JWT can we decoded?
+
+314
+00:16:45.410 --> 00:16:49.290
+And then are there three parts ahead of the payload and a senior shirt.
+
+315
+00:16:49.310 --> 00:16:51.950
+Can we read the claims inside the payload
+
+316
+00:16:52.380 --> 00:16:55.310
+and then when we're in the claims is this
+
+317
+00:16:55.320 --> 00:16:58.850
+token issued by an identity provider that we recognize.
+
+318
+00:16:58.850 --> 00:17:01.910
+So this particular account did have a connection
+
+319
+00:17:01.910 --> 00:17:04.869
+a trust relationship with this particular identity provider.
+
+320
+00:17:04.880 --> 00:17:07.790
+If yes. Then at that point it needs to check the audience.
+
+321
+00:17:07.800 --> 00:17:11.900
+Like do we recognize the application for which this token was created?
+
+322
+00:17:11.910 --> 00:17:13.910
+And in our example we said we will just use
+
+323
+00:17:13.910 --> 00:17:18.750
+the generic sts uh ws something I don't even remember
+
+324
+00:17:18.880 --> 00:17:20.460
+but you can keep that generic or you
+
+325
+00:17:20.460 --> 00:17:22.810
+can customize it if you have different applications
+
+326
+00:17:22.819 --> 00:17:27.140
+and get up actions can actually change that value for you when you create that organ.
+
+327
+00:17:27.150 --> 00:17:31.670
+So that value is actually a little bit of a placeholder that you can configure
+
+328
+00:17:31.900 --> 00:17:34.740
+either keep it standard if you have one particular
+
+329
+00:17:34.740 --> 00:17:37.120
+use case or you can customize it by application
+
+330
+00:17:38.490 --> 00:17:40.040
+and then the next phases. Okay.
+
+331
+00:17:40.040 --> 00:17:42.670
+Once we have validated that the token is correct that the
+
+332
+00:17:42.670 --> 00:17:46.590
+information the token looks good and we understand it we need to
+
+333
+00:17:46.590 --> 00:17:49.310
+make sure that that token is authentic so it wasn't forged
+
+334
+00:17:49.320 --> 00:17:51.970
+by a third party but it needs to come really from the
+
+335
+00:17:52.140 --> 00:17:58.980
+action and the way that I assume AWS is gonna verify that is by using the I. D. C.
+
+336
+00:17:58.990 --> 00:18:02.660
+So it's going to see in the claims what is the key I. D.
+
+337
+00:18:03.160 --> 00:18:10.610
+It knows what's the U. R. L. Of the token um public key U. L. Endpoint from the I. D. C.
+
+338
+00:18:10.620 --> 00:18:11.700
+Comic protocol
+
+339
+00:18:12.270 --> 00:18:15.200
+and it's gonna use that to download that particular key. The public key.
+
+340
+00:18:15.200 --> 00:18:17.330
+And then at that point you can actually check.
+
+341
+00:18:17.340 --> 00:18:21.930
+Okay was it really this key the one that signed the
+
+342
+00:18:22.090 --> 00:18:23.070
+the token?
+
+343
+00:18:23.080 --> 00:18:26.090
+So there is kind of a double trust there one is given by the fact
+
+344
+00:18:26.090 --> 00:18:31.190
+that we created this trust relationship with that particular ul of the Dc provider.
+
+345
+00:18:31.200 --> 00:18:33.330
+And the other one is given by the fact that
+
+346
+00:18:33.530 --> 00:18:36.010
+you can download the public key from that you are L.
+
+347
+00:18:36.020 --> 00:18:39.290
+And that public actually can verify that the
+
+348
+00:18:39.290 --> 00:18:42.280
+token was signed by that particular iBc provider.
+
+349
+00:18:43.030 --> 00:18:45.440
+And at that point if everything is good STS
+
+350
+00:18:45.440 --> 00:18:48.620
+will do its something it will create temporary credentials
+
+351
+00:18:48.630 --> 00:18:52.560
+and it will return um this temporary credentials that
+
+352
+00:18:52.560 --> 00:18:54.560
+can be used to interact with the Ws.
+
+353
+00:18:54.570 --> 00:19:00.450
+And we'll have the policy that is given to the particular round for those
+
+354
+00:19:01.360 --> 00:19:05.230
+what form what does it what do those credentials look like? What form do they take?
+
+355
+00:19:05.230 --> 00:19:05.880
+If I understand
+
+356
+00:19:06.170 --> 00:19:09.200
+this is like the usual when you assume a role with STS.
+
+357
+00:19:09.200 --> 00:19:12.240
+So my understanding is that it will be like an access key and secret
+
+358
+00:19:12.240 --> 00:19:16.400
+access key and also it will have a session dog and an expiration field.
+
+359
+00:19:16.410 --> 00:19:20.670
+-- Okay
+-- so the temporary credentials that are linked to a particular role.
+
+360
+00:19:20.920 --> 00:19:22.150
+Okay. Yeah.
+
+361
+00:19:22.160 --> 00:19:24.660
+So I guess this is kind of familiar in some ways if
+
+362
+00:19:24.660 --> 00:19:29.700
+you use sso or some of the cognito flows where you're exchanging
+
+363
+00:19:29.920 --> 00:19:31.820
+some third party identity provider,
+
+364
+00:19:31.830 --> 00:19:33.240
+you've got some credentials and you're
+
+365
+00:19:33.240 --> 00:19:35.040
+exchanging it for for temporary credentials,
+
+366
+00:19:35.040 --> 00:19:36.280
+you get the exact same thing.
+
+367
+00:19:36.290 --> 00:19:39.130
+Okay, that sounds a little bit clearer now.
+
+368
+00:19:39.140 --> 00:19:44.160
+How how would you use this outside of get up? Is this really limited to get up for now?
+
+369
+00:19:44.160 --> 00:19:47.580
+What if you've got other C. D providers, what other things would you use?
+
+370
+00:19:47.580 --> 00:19:48.790
+Oi dc providers for?
+
+371
+00:19:49.420 --> 00:19:53.310
+Yeah, this is something that got my curiosity because I was thinking, okay,
+
+372
+00:19:53.320 --> 00:19:55.840
+how does Aws trust get up?
+
+373
+00:19:55.850 --> 00:19:58.330
+And of course they made that generic so
+
+374
+00:19:58.340 --> 00:20:00.500
+if you can understand how that connection works,
+
+375
+00:20:00.500 --> 00:20:05.820
+then you can create your own sources for allowing
+
+376
+00:20:05.820 --> 00:20:08.380
+like on a certain event to assume a particular role
+
+377
+00:20:08.530 --> 00:20:12.800
+and you can kind of delegate this particular source
+
+378
+00:20:12.800 --> 00:20:14.710
+that the idea of given that there is a trust
+
+379
+00:20:14.710 --> 00:20:17.230
+relationship I trusted when a particular event happens then
+
+380
+00:20:17.230 --> 00:20:19.910
+I can assume a particular role with temporary dangers.
+
+381
+00:20:19.920 --> 00:20:24.940
+So I don't know if there are interesting examples outside the Ci cd world,
+
+382
+00:20:25.250 --> 00:20:28.640
+but for instance if you have an on premise Jenkins and you have your own I. D.
+
+383
+00:20:28.640 --> 00:20:29.470
+C provider,
+
+384
+00:20:29.480 --> 00:20:33.950
+you could build basically that integration pretty much the same way as we explain,
+
+385
+00:20:33.950 --> 00:20:35.040
+forgive up actions.
+
+386
+00:20:35.050 --> 00:20:38.320
+It's just gonna AWS is just going to trust your own on premise identity
+
+387
+00:20:38.320 --> 00:20:42.000
+provider to basically generate tokens that then
+
+388
+00:20:42.000 --> 00:20:44.930
+will give access to particular roles on AWS
+
+389
+00:20:45.550 --> 00:20:49.230
+but I was thinking also can you use this for other workflows?
+
+390
+00:20:49.240 --> 00:20:51.750
+I don't know if it's the best way of doing this,
+
+391
+00:20:51.750 --> 00:20:58.390
+but technically you could use event driven things if you want to basically,
+
+392
+00:20:58.400 --> 00:20:58.750
+I don't know,
+
+393
+00:20:58.750 --> 00:21:00.560
+maybe a physical action in the real world
+
+394
+00:21:00.560 --> 00:21:03.540
+to trigger something in the Ws and thinking,
+
+395
+00:21:03.540 --> 00:21:03.840
+I don't know,
+
+396
+00:21:03.840 --> 00:21:06.860
+maybe you have an application that every time you enter the office you swipe
+
+397
+00:21:06.860 --> 00:21:10.850
+your own card to track time or something like that if there is,
+
+398
+00:21:10.850 --> 00:21:13.170
+I don't know, I know I D C provider connected there,
+
+399
+00:21:13.570 --> 00:21:16.680
+that's why Dc provider there could be an application that
+
+400
+00:21:16.690 --> 00:21:19.580
+creates a talk and using that I D C provider assumes
+
+401
+00:21:19.580 --> 00:21:23.500
+a role and then maybe recording a Dynamodb table that I
+
+402
+00:21:23.500 --> 00:21:26.050
+don't know somebody accessed the building at a certain point.
+
+403
+00:21:26.060 --> 00:21:28.410
+So you could create this kind of,
+
+404
+00:21:28.730 --> 00:21:33.090
+I suppose actions where you want to limit where you have a source of authentication
+
+405
+00:21:33.090 --> 00:21:38.020
+and you want to assume a role but in a kind of time limited fashion
+
+406
+00:21:38.650 --> 00:21:41.160
+now, probably there are better ways to implement this kind of stuff,
+
+407
+00:21:41.160 --> 00:21:43.470
+but I was trying to stretch my imagination on,
+
+408
+00:21:43.480 --> 00:21:46.980
+once you understand this integration, how much can you use it?
+
+409
+00:21:46.990 --> 00:21:48.070
+How far can you go?
+
+410
+00:21:48.290 --> 00:21:49.790
+All right, it sounds like that.
+
+411
+00:21:49.790 --> 00:21:52.370
+This is applicable in any case where you've got a system to
+
+412
+00:21:52.370 --> 00:21:56.730
+system interaction between a non AWS environment and an AWS environment.
+
+413
+00:21:56.740 --> 00:22:00.530
+So it could be used when you've got an on premises application that needs to talk to
+
+414
+00:22:00.810 --> 00:22:04.620
+an AWS application, for example and you don't want to have access keys configured,
+
+415
+00:22:04.630 --> 00:22:08.690
+we know that in Ec two or in the CS you've got like a profile,
+
+416
+00:22:08.690 --> 00:22:12.140
+you can associate with that resource so you don't have to have secret keys.
+
+417
+00:22:12.150 --> 00:22:16.790
+But outside of AWS it has been very common for people to just use long lived keys
+
+418
+00:22:17.030 --> 00:22:18.500
+to perform that kind of interaction.
+
+419
+00:22:18.500 --> 00:22:22.490
+So I guess this is one way of overcoming that you just need to think about.
+
+420
+00:22:22.500 --> 00:22:27.120
+What is your old I. D. C. Provider and how are you going to issue those credentials?
+
+421
+00:22:27.130 --> 00:22:27.450
+You know,
+
+422
+00:22:27.450 --> 00:22:31.600
+I know some people would maybe integrated into active
+
+423
+00:22:31.600 --> 00:22:33.810
+directory and have some sort of service credentials.
+
+424
+00:22:33.820 --> 00:22:37.460
+So that might be another way of doing it. Um
+
+425
+00:22:38.030 --> 00:22:41.810
+It might be worthwhile mentioning actually as a slight segway there was
+
+426
+00:22:41.810 --> 00:22:45.860
+a very recent announcement for a new feature called I am rolls anywhere
+
+427
+00:22:46.100 --> 00:22:48.080
+and we can link to this announcement in the show notes,
+
+428
+00:22:48.090 --> 00:22:50.870
+but it sounds like another way of doing this kind of
+
+429
+00:22:50.870 --> 00:22:53.820
+system to system interaction where instead of having an I.
+
+430
+00:22:53.820 --> 00:22:57.070
+D. C. Provider, you use public key infrastructure.
+
+431
+00:22:57.070 --> 00:22:59.940
+So P K I you've got a root certificate
+
+432
+00:22:59.950 --> 00:23:03.800
+authority yourself or you can use AWS certificate manager
+
+433
+00:23:04.010 --> 00:23:05.810
+and you can issue client certificates
+
+434
+00:23:06.230 --> 00:23:07.220
+and you actually set up a
+
+435
+00:23:07.220 --> 00:23:11.540
+trust chain between your certificate certificate authority
+
+436
+00:23:11.640 --> 00:23:14.740
+and AWS and then use client certificates as
+
+437
+00:23:14.740 --> 00:23:18.000
+a means to exchange them for temporary credentials.
+
+438
+00:23:18.010 --> 00:23:20.920
+So it's like slightly slight tangent but
+
+439
+00:23:20.930 --> 00:23:23.020
+related and it's a very recent announcement,
+
+440
+00:23:23.020 --> 00:23:24.420
+so I just thought I'd call it out there.
+
+441
+00:23:25.160 --> 00:23:30.130
+Um But I guess what this is kind of saying to us is that all you need to do is to
+
+442
+00:23:30.130 --> 00:23:33.560
+create something that follows the abc protocol and you can pretty
+
+443
+00:23:33.560 --> 00:23:40.790
+much use it to exchange identities for credentials in AWS.
+
+444
+00:23:40.800 --> 00:23:42.830
+So I guess that that means
+
+445
+00:23:43.080 --> 00:23:46.360
+it's potentially something that could cause security issues.
+
+446
+00:23:46.360 --> 00:23:47.350
+If you don't get it right,
+
+447
+00:23:47.420 --> 00:23:50.270
+you could create you can create your own identity provider,
+
+448
+00:23:50.280 --> 00:23:53.010
+you could use it to give administrator access to all of your accounts.
+
+449
+00:23:53.020 --> 00:23:55.860
+So you need to understand exactly what the trust model is.
+
+450
+00:23:55.870 --> 00:23:58.280
+Is it worthwhile maybe summarizing that?
+
+451
+00:23:58.290 --> 00:24:00.260
+How would you describe the trust model for this
+
+452
+00:24:00.760 --> 00:24:02.860
+-- I. D. C. Relationship.
+-- Yeah.
+
+453
+00:24:02.870 --> 00:24:06.930
+So that as we said, the first step is to create the trust relationship within AWS.
+
+454
+00:24:06.930 --> 00:24:07.180
+And the
+
+455
+00:24:07.290 --> 00:24:12.420
+actions in this case we go to AWS I am and we create the I. D. C provider connection
+
+456
+00:24:12.950 --> 00:24:14.170
+at that point.
+
+457
+00:24:14.180 --> 00:24:18.450
+Get up action can create tokens in the form of JWT and these
+
+458
+00:24:18.450 --> 00:24:22.050
+tokens are something that AWS should be able to trust and recognize.
+
+459
+00:24:22.060 --> 00:24:27.380
+So with a token like that get up action can say assume a particular role.
+
+460
+00:24:27.390 --> 00:24:29.060
+And it is basically exchanging that
+
+461
+00:24:29.060 --> 00:24:32.220
+token that automatically generated with temporary
+
+462
+00:24:32.220 --> 00:24:35.260
+credentials that are given by a W s for a particular role.
+
+463
+00:24:35.780 --> 00:24:37.100
+So in summary,
+
+464
+00:24:37.100 --> 00:24:39.410
+I suppose that we are basically creating
+
+465
+00:24:39.420 --> 00:24:42.900
+um configuration where AWS trusts the seniors
+
+466
+00:24:43.010 --> 00:24:43.790
+of the I. D. C.
+
+467
+00:24:43.790 --> 00:24:46.380
+Provider and with that trust comes the ability
+
+468
+00:24:46.380 --> 00:24:49.010
+to assume a role with temporary credentials.
+
+469
+00:24:49.430 --> 00:24:50.450
+Okay, that makes sense.
+
+470
+00:24:50.450 --> 00:24:54.230
+So it's quite seems quite powerful and it's nice the way it's using the standard and
+
+471
+00:24:54.470 --> 00:24:58.950
+you know, you could potentially opens up support for a lot of other O A D. C providers.
+
+472
+00:24:58.960 --> 00:25:01.470
+I think we've covered quite a lot of detail.
+
+473
+00:25:01.480 --> 00:25:04.610
+So you've given a lot of information there from
+
+474
+00:25:04.610 --> 00:25:05.890
+a developer point of view if you're thinking.
+
+475
+00:25:05.890 --> 00:25:07.580
+Okay, that's all very well and good,
+
+476
+00:25:07.720 --> 00:25:11.830
+I'm informed now. But as a developer I've gotta see the pipeline. All right.
+
+477
+00:25:11.830 --> 00:25:15.090
+Maybe I'm creating a new one or maybe I've got one that already uses long lived
+
+478
+00:25:15.090 --> 00:25:16.890
+credentials and I want to switch over to
+
+479
+00:25:16.890 --> 00:25:18.950
+using short lived credentials with this new way.
+
+480
+00:25:18.960 --> 00:25:21.050
+What are the steps in summary?
+
+481
+00:25:21.510 --> 00:25:25.340
+Yeah. Just make sure that you have computed the I. D. C. Provider in a W. S.
+
+482
+00:25:25.340 --> 00:25:27.990
+So that you have created that trust relationship and
+
+483
+00:25:27.990 --> 00:25:30.340
+we have explained extensively how to do that manually.
+
+484
+00:25:30.350 --> 00:25:32.080
+But when you also pointed out that you can
+
+485
+00:25:32.080 --> 00:25:36.200
+do that programmatically using carrefour or confirmation or C.
+
+486
+00:25:36.200 --> 00:25:37.710
+D. K. Or something like that.
+
+487
+00:25:37.720 --> 00:25:42.700
+So make sure that that happens first of all, then you need to create your own rolls.
+
+488
+00:25:42.710 --> 00:25:46.860
+So you can create a role for every single workflow if you want to be very strict,
+
+489
+00:25:46.870 --> 00:25:50.190
+make sure to set up the right permissions for every role
+
+490
+00:25:50.480 --> 00:25:54.620
+and uh at that point in your get up action workflow,
+
+491
+00:25:54.620 --> 00:25:57.290
+you can use the AWS action configure AWS
+
+492
+00:25:57.290 --> 00:26:00.830
+credentials to basically have a step before you
+
+493
+00:26:00.830 --> 00:26:05.440
+interact with any AWS resource to get the
+
+494
+00:26:05.450 --> 00:26:08.360
+temporary credentials so that you can remove all your
+
+495
+00:26:08.680 --> 00:26:12.060
+credentials and swap them with this particular step that
+
+496
+00:26:12.060 --> 00:26:15.800
+uses the AWS Action to do this exchange of
+
+497
+00:26:15.980 --> 00:26:19.160
+JWT token for AWS temporary credentials.
+
+498
+00:26:19.170 --> 00:26:21.470
+-- Are
+-- there any other resources we should point
+
+499
+00:26:21.470 --> 00:26:23.340
+people to want to get started with this.
+
+500
+00:26:23.380 --> 00:26:24.280
+Yes,
+
+501
+00:26:24.280 --> 00:26:29.290
+I was actually reading a very good post by Elias Branch that it's kind of
+
+502
+00:26:29.290 --> 00:26:32.920
+a tutorial that guides you step by step on how to do all the things
+
+503
+00:26:32.920 --> 00:26:38.090
+we described today and asked very good examples and also a lot of screenshots so
+
+504
+00:26:38.090 --> 00:26:41.030
+that you can be sure that you are following and doing the right things.
+
+505
+00:26:41.040 --> 00:26:42.890
+So I definitely recommend if you want to do this
+
+506
+00:26:42.890 --> 00:26:45.150
+for the first time to use this tutorial as a
+
+507
+00:26:45.150 --> 00:26:49.080
+reference to guide you through all the process and we're
+
+508
+00:26:49.080 --> 00:26:50.470
+going to have a link in the show notes.
+
+509
+00:26:50.480 --> 00:26:53.570
+But also if you haven't seen our previous episode where we discuss
+
+510
+00:26:53.570 --> 00:26:57.480
+why you should consider using github actions rather than called pipeline.
+
+511
+00:26:57.490 --> 00:27:01.820
+Maybe that's a good one that you can check out after this one to make sure
+
+512
+00:27:01.820 --> 00:27:06.190
+you really get all the context on why all this stuff might be interesting for you.
+
+513
+00:27:06.200 --> 00:27:10.450
+That's all we have for today and we'll see you at the next episode.
+
+514
+00:27:10.460 --> 00:27:11.650
+Thank you very much.
