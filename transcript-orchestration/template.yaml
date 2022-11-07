@@ -33,12 +33,15 @@ Resources:
       DefinitionSubstitutions:
         ManifestCreatorFunctionArn: !GetAtt ManifestCreatorFunction.Arn
         TranscoderFunctionArn: !GetAtt TranscoderFunction.Arn
+        TranscriptProcessorFunctionArn: !GetAtt TranscriptProcessorFunction.Arn
         ModelName: !Ref ModelName
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref TranscriptProcessorFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ManifestCreatorFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TranscoderFunction
         - S3CrudPolicy:
             BucketName: !Ref BucketName
         - Statement:
@@ -72,28 +75,6 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref BucketName
           POWERTOOLS_SERVICE_NAME: TranscriptProcessor
-      Architectures:
-        - arm64
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2020
-        Sourcemap: true
-        EntryPoints:
-          - functions/transcript-processor/app.js
-
-  TranscoderFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: .
-      Handler: app.handleEvent
-      Runtime: nodejs16.x
-      Timeout: 120
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref BucketName
-          POWERTOOLS_SERVICE_NAME: Transcoder
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref BucketName
@@ -106,7 +87,40 @@ Resources:
         Target: es2020
         Sourcemap: true
         EntryPoints:
-          - functions/audio-transcoder/app.js
+          - functions/transcript-processor/app.ts
+
+  FfmpegLambdaLayer:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:145266761615:applications/ffmpeg-lambda-layer
+        SemanticVersion: 1.0.0
+
+  TranscoderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Layers:
+        - !GetAtt FfmpegLambdaLayer.Outputs.LayerVersion
+      Handler: app.handleEvent
+      Runtime: nodejs16.x
+      Timeout: 120
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+          POWERTOOLS_SERVICE_NAME: Transcoder
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref BucketName
+      Architectures:
+        - x86_64
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - functions/audio-transcoder/app.ts
 
   ManifestCreatorFunction:
     Type: AWS::Serverless::Function

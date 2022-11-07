@@ -9,7 +9,7 @@
       "Parameters": {
         "ForceTranscribe": false,
         "ForceWhisper": false,
-        "Mp3Key.$": "States.Format('{}.mp3', $.AudioInputKey)",
+        "Mp3Key.$": "States.Format('{}.mp3', $.AudioInputKey)"
       }
     },
     "ApplyDefaults": {
@@ -22,7 +22,7 @@
     },
     "Parallel": {
       "Type": "Parallel",
-      "Next": "Download Audio",
+      "Next": "Merge Parallel Outputs",
       "Branches": [
         {
           "StartAt": "Force Whisper?",
@@ -91,7 +91,7 @@
               "Resource": "arn:aws:states:::sagemaker:createTransformJob.sync",
               "Parameters": {
                 "TransformJobName.$": "$$.Execution.Name",
-                "ModelName": "{ModelName}",
+                "ModelName": "${ModelName}",
                 "MaxConcurrentTransforms": 1,
                 "BatchStrategy": "SingleRecord",
                 "ModelClientConfig": {
@@ -163,7 +163,7 @@
               "Resource": "arn:aws:states:::lambda:invoke",
               "ResultPath": "$.TranscodeOutput",
               "ResultSelector": {
-                "$": "$.Payload"
+                "$.Payload": "$.Payload"
               },
               "Parameters": {
                 "FunctionName": "${TranscoderFunctionArn}",
@@ -256,16 +256,26 @@
         }
       ]
     },
-    "Download Audio": {
+    "Merge Parallel Outputs": {
+      "Type": "Pass",
+      "Next": "Process Transcripts",
+      "ResultPath": "$",
+      "Parameters": {
+        "inputs.$": "$[0].inputs"
+      }
+    },
+    "Process Transcripts": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "InputPath": "$",
       "OutputPath": "$",
-      "ResultPath": "$.AudioDownloadResult",
+      "ResultPath": "$.TranscriptProcessorResult",
       "Parameters": {
-        "FunctionName": "arn:aws:lambda:eu-west-1:935672627075:function:podw-EpisodeDownloader-NLQ-AudioDownloaderFunction-pU5bLUHrkSQ1",
+        "FunctionName": "${TranscriptProcessorFunctionArn}",
         "Payload": {
-          "episodeNumber.$": "$.episodeNumber"
+          "whisperOutputKey.$": "$.inputs.WhisperOutputKey",
+          "transcribeOutputKey.$": "$.inputs.TranscribeOutputKey",
+          "processedTranscriptKey.$": "$.inputs.ProcessedTranscriptKey"
         }
       },
       "Retry": [
@@ -273,8 +283,8 @@
           "ErrorEquals": [
             "States.TaskFailed"
           ],
-          "IntervalSeconds": 15,
-          "MaxAttempts": 3,
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
           "BackoffRate": 1.5
         }
       ],

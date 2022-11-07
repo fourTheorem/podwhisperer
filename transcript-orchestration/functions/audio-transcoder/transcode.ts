@@ -1,12 +1,10 @@
+import { promisify }  from 'node:util'
+import { exec as execCb } from 'node:child_process'
 import { S3Client } from '@aws-sdk/client-s3'
-import { Upload } from '@aws-sdk/lib-storage'
-import { logger, metrics } from '../lib/lambda-common.js'
-import FeedParser from 'feedparser'
-import { Readable, Transform } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
-import { request } from 'undici'
-import { MetricUnits} from '@aws-lambda-powertools/metrics'
-import ffmpeg from 'ffmpeg'
+
+import { logger } from '../lib/lambda-common'
+
+const exec = promisify(execCb)
 
 export type AudioTranscodeOptions = {
   inputFilePath: string,
@@ -23,8 +21,7 @@ const s3Client = new S3Client({})
  * @returns Result
  */
 export const transcodeAudio = async (options: AudioTranscodeOptions) : Promise<void> => {
-  logger.info('Transcoding audio', options)
-  const process = await new ffmpeg(options.inputFilePath)
-  await process.save(options.outputFilePath)
-  logger.info('Transcoding complete', options)
+  logger.info('Transcoding audio with FFmpeg', options)
+  const { stdout, stderr }  = await exec(`/opt/bin/ffmpeg -i ${options.inputFilePath} ${options.outputFilePath}`)
+  logger.info('FFmpeg complete', { stderr, stdout })
 }

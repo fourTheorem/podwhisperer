@@ -1,7 +1,6 @@
 import { logger, middify } from '../lib/lambda-common.js'
 import { TranscribeSpeakerSegment, WhisperSegment } from './types.js'
-import ReadableStream from 'readable-stream'
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { S3Client } from '@aws-sdk/client-s3'
 import { getS3JSON, putS3JSON } from './utils.js'
 import { merge } from './process-transcripts.js'
 
@@ -13,10 +12,8 @@ if (!BUCKET_NAME) {
 type TranscriptEvent = {
   whisperOutputKey: string,
   transcribeOutputKey: string,
-  processTranscriptKey: string
+  processedTranscriptKey: string
 }
-
-
 
 const s3Client = new S3Client({})
 
@@ -50,6 +47,6 @@ export const handleEvent = middify(async (event: TranscriptEvent) => {
 
   logger.info('Transcript processed')
 
-  await putS3JSON(s3Client, BUCKET_NAME, event.processTranscriptKey, mergedSegments)
+  await putS3JSON(s3Client, BUCKET_NAME, event.processedTranscriptKey, mergedSegments)
   return null
-}) as unknown as ((event: TranscriptEvent) => Promise<null>) 
+})

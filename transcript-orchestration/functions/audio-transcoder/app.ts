@@ -1,5 +1,6 @@
 import { basename, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
+import { createWriteStream } from 'node:fs'
 import { open, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import ReadableStream from 'readable-stream'
@@ -7,8 +8,9 @@ import ReadableStream from 'readable-stream'
 import { Upload } from '@aws-sdk/lib-storage'
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
-import { logger, middify } from '../lib/lambda-common.js'
-import { transcodeAudio } from './transcode.js'
+import { logger, middify } from '../lib/lambda-common'
+import { transcodeAudio } from './transcode'
+import { Context } from 'aws-lambda'
 
 const { BUCKET_NAME } = process.env
 if (!BUCKET_NAME) {
@@ -27,21 +29,23 @@ const s3Client = new S3Client({})
  *
  * @returns {Object} object - Object containing details of the stock buying transaction
  */
-export const handleEvent = middify(async (event: TranscodeEvent) => {
-  logger.info('Transcoding audio', { event })
+export const handleEvent = middify(async (event: TranscodeEvent, context: Context  ) => {
+  logger.info('Transcoding audio', { event, BUCKET_NAME })
   const transcriptResponse = await s3Client.send(new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: event.audioInputKey
   }))
 
-  const tempInputFilePath = resolve(tmpdir(), basename(event.audioInputKey))
-  const tempOutputFilePath = resolve(tmpdir(), basename(event.audioOutputKey))
+  logger.info('Transcript response', { transcriptResponse })
+  const requestId = context.awsRequestId
+  const tempInputFilePath = resolve(tmpdir(), `${requestId}_${basename(event.audioInputKey)}`)
+  const tempOutputFilePath = resolve(tmpdir(), `${requestId}_${basename(event.audioOutputKey)}`)
+
   logger.info('Using temporary files', { tempInputFilePath, tempOutputFilePath })
-  const fileStream = await open(tempInputFilePath)
   try {
     await pipeline(
       transcriptResponse.Body as unknown as ReadableStream,
-      fileStream.createWriteStream()
+      createWriteStream(tempInputFilePath)
     )
 
     logger.info('Transcoding')
@@ -69,4 +73,4 @@ export const handleEvent = middify(async (event: TranscodeEvent) => {
       logger.warn('Failed to delete temporary files', { err })
     }
   }
-}) as unknown as ((event: TranscodeEvent) => Promise<null>) 
+})// as unknown as ((event: TranscodeEvent) => Promise<null>) 

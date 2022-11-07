@@ -10,5 +10,8 @@
     "install": "^0.13.0",
     "mocha": "^9.1.4",
     "npm": "^8.19.2"
+  },
+  "dependencies": {
+    "@aws-sdk/lib-storage": "^3.204.0"
   }
 }

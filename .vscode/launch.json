@@ -1,6 +1,29 @@
 {
   "configurations": [
     {
+      "type": "aws-sam",
+      "request": "direct-invoke",
+      "name": "transcript-orchestration:TranscoderFunction",
+      "invokeTarget": {
+        "target": "template",
+        "templatePath": "${workspaceFolder}/transcript-orchestration/template.yaml",
+        "logicalId": "TranscoderFunction"
+      },
+      "aws": {},
+      "lambda": {
+        "payload": {
+          "json": {
+            "audioInputKey": "audio/sample2.m4a",
+            "audioOutputKey": "audio/sample2.m4a.mp3"
+          }
+        },
+        "environmentVariables": {
+          "AWS_PROFILE": "dev2.DevAdministratorAccess",
+          "BUCKET_NAME": "pod-transcription-935672627075-eu-west-1"
+        }
+      }
+    },
+    {
       "name": "Attach",
       "port": 5858,
       "request": "attach",
@@ -16,7 +39,7 @@
       "invokeTarget": {
         "target": "template",
         "templatePath": "${workspaceFolder}/template.yaml",
-        "logicalId": "AudioDownloaderFunction",
+        "logicalId": "AudioDownloaderFunction"
       },
       "lambda": {
         "payload": {
