@@ -34,7 +34,9 @@ Resources:
         ManifestCreatorFunctionArn: !GetAtt ManifestCreatorFunction.Arn
         TranscoderFunctionArn: !GetAtt TranscoderFunction.Arn
         TranscriptProcessorFunctionArn: !GetAtt TranscriptProcessorFunction.Arn
+        S3KeysFunctionArn: !GetAtt S3KeysFunction.Arn
         ModelName: !Ref ModelName
+        BucketName: !Ref BucketName
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref TranscriptProcessorFunction
@@ -42,6 +44,8 @@ Resources:
             FunctionName: !Ref ManifestCreatorFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref TranscoderFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref S3KeysFunction
         - S3CrudPolicy:
             BucketName: !Ref BucketName
         - Statement:
@@ -63,6 +67,27 @@ Resources:
                 - sagemaker:StopTransformJob
                 - sagemaker:DescribeTransformJob
               Resource: !Sub 'arn:${AWS::Partition}:sagemaker:${AWS::Region}:${AWS::AccountId}:transform-job/*'
+
+  S3KeysFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.handleEvent
+      Runtime: nodejs16.x
+      Timeout: 900
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: S3Keys
+      Architectures:
+        - arm64
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - functions/s3-keys/app.ts
 
   TranscriptProcessorFunction:
     Type: AWS::Serverless::Function

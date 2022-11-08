@@ -7,18 +7,45 @@
       "Next": "ApplyDefaults",
       "ResultPath": "$.inputDefaults",
       "Parameters": {
-        "ForceTranscribe": false,
-        "ForceWhisper": false,
-        "Mp3Key.$": "States.Format('{}.mp3', $.AudioInputKey)"
+        "forceTranscribe": false,
+        "forceWhisper": false,
+        "bucketName": "${BucketName}"
       }
     },
     "ApplyDefaults": {
       "Type": "Pass",
-      "Next": "Parallel",
+      "Next": "Define Output Keys",
       "ResultPath": "$",
       "Parameters": {
         "inputs.$": "States.JsonMerge($.inputDefaults, $$.Execution.Input, false)"
       }
+    },
+    "Define Output Keys": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "ResultPath": "$.outputs",
+      "ResultSelector": {
+        "keys.$": "$.Payload"
+      },
+      "Parameters": {
+        "FunctionName": "${S3KeysFunctionArn}",
+        "Payload": {
+          "audioInputKey.$": "$.inputs.audioInputKey"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Parallel"
     },
     "Parallel": {
       "Type": "Parallel",
@@ -31,7 +58,7 @@
               "Type": "Choice",
               "Choices": [
                 {
-                  "Variable": "$.inputs.ForceWhisper",
+                  "Variable": "$.inputs.forceWhisper",
                   "BooleanEquals": true,
                   "Next": "CreateSageMakerManifest"
                 }
@@ -41,8 +68,8 @@
             "HeadObject Whisper Output": {
               "Type": "Task",
               "Parameters": {
-                "Bucket.$": "$.inputs.Bucket",
-                "Key.$": "$.inputs.WhisperOutputKey"
+                "Bucket.$": "$.inputs.bucketName",
+                "Key.$": "$.outputs.keys.whisperOutputKey"
               },
               "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
               "Next": "Whisper Complete",
@@ -66,7 +93,7 @@
                 "FunctionName": "${ManifestCreatorFunctionArn}",
                 "Payload": {
                   "id.$": "$$.Execution.Name",
-                  "audioInputKey.$": "$.inputs.AudioInputKey"
+                  "audioInputKey.$": "$.inputs.audioInputKey"
                 }
               },
               "Retry": [
@@ -102,13 +129,13 @@
                   "DataSource": {
                     "S3DataSource": {
                       "S3DataType": "ManifestFile",
-                      "S3Uri.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.Manifest.ManifestKey)"
+                      "S3Uri.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.Manifest.ManifestKey)"
                     }
                   },
                   "ContentType": "application/json"
                 },
                 "TransformOutput": {
-                  "S3OutputPath.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.inputs.WhisperOutputKey)",
+                  "S3OutputPath.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.outputs.keys.whisperOutputKey)",
                   "Accept": "application/json"
                 },
                 "TransformResources": {
@@ -131,7 +158,7 @@
               "Type": "Choice",
               "Choices": [
                 {
-                  "Variable": "$.inputs.ForceTranscribe",
+                  "Variable": "$.inputs.forceTranscribe",
                   "BooleanEquals": true,
                   "Next": "Transcode Audio"
                 }
@@ -141,8 +168,8 @@
             "HeadObject Transcribe Output": {
               "Type": "Task",
               "Parameters": {
-                "Bucket.$": "$.inputs.Bucket",
-                "Key.$": "$.inputs.TranscribeOutputKey"
+                "Bucket.$": "$.inputs.bucketName",
+                "Key.$": "$.outputs.keys.transcribeOutputKey"
               },
               "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
               "Next": "Transcribe Complete",
@@ -168,8 +195,8 @@
               "Parameters": {
                 "FunctionName": "${TranscoderFunctionArn}",
                 "Payload": {
-                  "audioInputKey.$": "$.inputs.AudioInputKey",
-                  "audioOutputKey.$": "$.inputs.Mp3Key"
+                  "audioInputKey.$": "$.inputs.audioInputKey",
+                  "audioOutputKey.$": "$.outputs.keys.mp3Key"
                 }
               },
               "Retry": [
@@ -190,11 +217,11 @@
               "Type": "Task",
               "Parameters": {
                 "Media": {
-                  "MediaFileUri.$": "States.Format('s3://{}/{}', $.inputs.Bucket, $.inputs.Mp3Key)"
+                  "MediaFileUri.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.outputs.keys.mp3Key)"
                 },
                 "LanguageCode": "en-GB",
-                "OutputBucketName.$": "$.inputs.Bucket",
-                "OutputKey.$": "$.inputs.TranscribeOutputKey",
+                "OutputBucketName.$": "$.inputs.bucketName",
+                "OutputKey.$": "$.outputs.keys.transcribeOutputKey",
                 "TranscriptionJobName.$": "$$.Execution.Name",
                 "Settings": {
                   "ShowSpeakerLabels": true,
@@ -261,7 +288,8 @@
       "Next": "Process Transcripts",
       "ResultPath": "$",
       "Parameters": {
-        "inputs.$": "$[0].inputs"
+        "inputs.$": "$[0].inputs",
+        "outputs.$": "$[0].outputs"
       }
     },
     "Process Transcripts": {
@@ -273,9 +301,9 @@
       "Parameters": {
         "FunctionName": "${TranscriptProcessorFunctionArn}",
         "Payload": {
-          "whisperOutputKey.$": "$.inputs.WhisperOutputKey",
-          "transcribeOutputKey.$": "$.inputs.TranscribeOutputKey",
-          "processedTranscriptKey.$": "$.inputs.ProcessedTranscriptKey"
+          "whisperOutputKey.$": "$.outputs.keys.whisperOutputKey",
+          "transcribeOutputKey.$": "$.outputs.keys.transcribeOutputKey",
+          "processedTranscriptKey.$": "$.outputs.keys.processedTranscriptKey"
         }
       },
       "Retry": [

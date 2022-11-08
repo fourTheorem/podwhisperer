@@ -73,4 +73,4 @@ export const handleEvent = middify(async (event: TranscodeEvent, context: Contex
       logger.warn('Failed to delete temporary files', { err })
     }
   }
-})// as unknown as ((event: TranscodeEvent) => Promise<null>) 
+}) as unknown as ((event: TranscodeEvent, context: Context) => Promise<null>) 

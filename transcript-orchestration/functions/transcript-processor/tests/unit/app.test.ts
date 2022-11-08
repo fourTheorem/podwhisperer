@@ -47,5 +47,5 @@ tap.test('transcript processor generates a merged transcript', async (t) => {
       prevEnd = segment.end
     }
   })
-  await handleEvent({ whisperOutputKey, transcribeOutputKey, processedTranscriptKey }, mockedContext) 
+  await handleEvent({ whisperOutputKey, transcribeOutputKey, processedTranscriptKey }) 
 })

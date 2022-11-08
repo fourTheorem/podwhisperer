@@ -49,4 +49,4 @@ export const handleEvent = middify(async (event: TranscriptEvent) => {
 
   await putS3JSON(s3Client, BUCKET_NAME, event.processedTranscriptKey, mergedSegments)
   return null
-})
+}) as unknown as ((event: TranscriptEvent) => Promise<null>) 
