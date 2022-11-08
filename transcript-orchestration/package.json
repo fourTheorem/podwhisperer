@@ -4,7 +4,8 @@
   "description": "Anchor.fm episode downloader",
   "scripts": {
     "test": "npx tap --ts **/tests/**/*.test.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "audit": "npm audit --omit dev"
   },
   "keywords": [],
   "author": "fourTheorem Ltd.",
