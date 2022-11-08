@@ -47,6 +47,7 @@ export const handleEvent = middify(async (event: ManifestCreationEvent) => {
 
   logger.info('Manifest created', { putResponses })
   return {
-    manifestKey
+    manifestKey,
+    jobParamsKey
   }
 }) as unknown as ((event: ManifestCreationEvent) => Promise<void>) 

@@ -88,7 +88,7 @@
             "CreateSageMakerManifest": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
-              "ResultPath": "$.Manifest",
+              "ResultPath": "$.manifest",
               "Parameters": {
                 "FunctionName": "${ManifestCreatorFunctionArn}",
                 "Payload": {
@@ -110,12 +110,14 @@
               ],
               "Next": "SageMaker CreateTransformJob",
               "ResultSelector": {
-                "ManifestKey.$": "$.Payload.manifestKey"
+                "manifestKey.$": "$.Payload.manifestKey",
+                "jobParamsKey.$": "$.Payload.jobParamsKey"
               }
             },
             "SageMaker CreateTransformJob": {
               "Type": "Task",
               "Resource": "arn:aws:states:::sagemaker:createTransformJob.sync",
+              "ResultPath": "$.SageMakerOutput",
               "Parameters": {
                 "TransformJobName.$": "$$.Execution.Name",
                 "ModelName": "${ModelName}",
@@ -129,13 +131,13 @@
                   "DataSource": {
                     "S3DataSource": {
                       "S3DataType": "ManifestFile",
-                      "S3Uri.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.Manifest.ManifestKey)"
+                      "S3Uri.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.manifest.manifestKey)"
                     }
                   },
                   "ContentType": "application/json"
                 },
                 "TransformOutput": {
-                  "S3OutputPath.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.outputs.keys.whisperOutputKey)",
+                  "S3OutputPath.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.outputs.keys.whisperPrefix)",
                   "Accept": "application/json"
                 },
                 "TransformResources": {
@@ -143,6 +145,17 @@
                   "InstanceType": "ml.m4.xlarge"
                 }
               },
+              "Next": "Copy Whisper Transcript"
+            },
+            "Copy Whisper Transcript": {
+              "Type": "Task",
+              "Parameters": {
+                "Bucket.$": "$.inputs.bucketName",
+                "Key.$": "$.outputs.keys.whisperOutputKey",
+                "CopySource.$": "States.Format('/{}/whisper-batch-output/{}.out', $.inputs.bucketName, $.manifest.jobParamsKey)"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:s3:copyObject",
+              "ResultPath": "$.CopyWhisperTranscriptResult",
               "Next": "Whisper Complete"
             },
             "Whisper Complete": {
@@ -215,6 +228,7 @@
             },
             "Start Transcription Job": {
               "Type": "Task",
+              "ResultPath": "$.TranscribeOutput",
               "Parameters": {
                 "Media": {
                   "MediaFileUri.$": "States.Format('s3://{}/{}', $.inputs.bucketName, $.outputs.keys.mp3Key)"
@@ -239,9 +253,9 @@
             "Wait for Transcription Job": {
               "Type": "Wait",
               "Seconds": 10,
-              "Next": "GetTranscriptionJob"
+              "Next": "Get Transcription Job"
             },
-            "GetTranscriptionJob": {
+            "Get Transcription Job": {
               "Type": "Task",
               "Next": "Choice",
               "Parameters": {
@@ -250,7 +264,8 @@
               "Resource": "arn:aws:states:::aws-sdk:transcribe:getTranscriptionJob",
               "ResultSelector": {
                 "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName",
-                "TranscriptionJobStatus.$": "$.TranscriptionJob.TranscriptionJobStatus"
+                "TranscriptionJobStatus.$": "$.TranscriptionJob.TranscriptionJobStatus",
+                "TranscriptKey.$": "$.TranscriptionJob.Transcript.TranscriptFileUri"
               },
               "ResultPath": "$.TranscriptionJob"
             },
@@ -267,7 +282,7 @@
                   "Variable": "$.TranscriptionJob",
                   "StringMatches": "FAILED",
                   "Comment": "Fail",
-                  "Next": "TranscribeJobFailed"
+                  "Next": "Transcribe Job Failed"
                 }
               ],
               "Default": "Wait for Transcription Job"
@@ -276,7 +291,7 @@
               "Type": "Pass",
               "End": true
             },
-            "TranscribeJobFailed": {
+            "Transcribe Job Failed": {
               "Type": "Fail"
             }
           }
