@@ -7,6 +7,11 @@ type MergedTranscriptSegment = {
   text: string,
 }
 
+type MergedTranscript = {
+  segments: MergedTranscriptSegment[],
+  speakers: Record<string, string>
+}
+
 type SpeakerChangeEntry = { speakerLabel: string, start: number }
 
 export function closestSpeakerChange(speakerChanges: SpeakerChangeEntry[], time: number): SpeakerChangeEntry | null {
@@ -22,11 +27,14 @@ export function closestSpeakerChange(speakerChanges: SpeakerChangeEntry[], time:
 
 export function merge(
   whisperSegments: WhisperSegment[],
-  transcribeSegments: TranscribeSpeakerSegment[]): MergedTranscriptSegment[]
+  transcribeSegments: TranscribeSpeakerSegment[]): MergedTranscript
 {
+  const speakerLabels = new Set<string>()
+
   const speakerChangeIndex = transcribeSegments.reduce<SpeakerChangeEntry[]>((acc, segment) => {
     let lastLabel = acc.length > 0 ? acc[acc.length - 1].speakerLabel : ''
     if (segment.speakerLabel !== lastLabel) {
+      speakerLabels.add(segment.speakerLabel)
       acc.push({ speakerLabel: segment.speakerLabel, start: segment.start })
     }
     return acc
@@ -53,7 +61,16 @@ export function merge(
     }
   }
 
-  return segments
+  const speakers : Record<string, string> = {}
+  for (const speaker of speakerLabels) {
+    // TODO - use the actual speaker name for the value
+    speakers[speaker] = speaker
+  }
+
+  return {
+    speakers,
+    segments
+  }
 }
 
 function endsWithPartialSentence(text: string) {

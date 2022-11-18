@@ -53,20 +53,26 @@ tap.test('it merges a simple set of files', async (t) => {
 
   const result = merge(whisperSegments, transcribeSegments)
 
-  const expectedResult = [
-    {
-      speakerLabel: 'spk_0',
-      start: 0,
-      end: 2,
-      text: 'Hello how are you doing today?'
+  const expectedResult = {
+    speakers: {
+      spk_0: 'spk_0',
+      spk_1: 'spk_1'
     },
-    {
-      speakerLabel: 'spk_1',
-      start: 3,
-      end: 5,
-      text: 'I am doing great, thanks for asking.'
-    }
-  ]
+    segments: [
+      {
+        speakerLabel: 'spk_0',
+        start: 0,
+        end: 2,
+        text: 'Hello how are you doing today?'
+      },
+      {
+        speakerLabel: 'spk_1',
+        start: 3,
+        end: 5,
+        text: 'I am doing great, thanks for asking.'
+      }
+    ]
+  }
 
   t.same(result, expectedResult)
 })
@@ -80,20 +86,25 @@ tap.test('it merges segments where the first transcribe segment starts after the
     { 'start': 1.41, end: 8.32, speakerLabel: 'spk_0' }
   ]
   const result = merge(whisperSegments, transcribeSegments)
-  const expectedResult = [
-    {
-      speakerLabel: 'spk_0',
-      start: 0,
-      end: 7.04,
-      text: ' Node.js is considered by many a game changer, possibly the biggest innovation of the decade'
+  const expectedResult = {
+    speakers: {
+      spk_0: 'spk_0'
     },
-    {
-      speakerLabel: 'spk_0',
-      start: 7.04,
-      end: 36.64,
-      text: ' in web development.'
-    }
-  ]
+    segments: [
+      {
+        speakerLabel: 'spk_0',
+        start: 0,
+        end: 7.04,
+        text: ' Node.js is considered by many a game changer, possibly the biggest innovation of the decade'
+      },
+      {
+        speakerLabel: 'spk_0',
+        start: 7.04,
+        end: 36.64,
+        text: ' in web development.'
+      }
+    ]
+  }
   t.same(result, expectedResult)
 })
 
@@ -104,8 +115,8 @@ tap.test('it identifies speaker as unknown if there is no speaker data', async (
   ]
   const transcribeSegments: TranscribeSpeakerSegment[] = []
   const result = merge(whisperSegments, transcribeSegments)
-  t.same(result.length, 2)
-  for (const segment of result) {
+  t.same(result.segments.length, 2)
+  for (const segment of result.segments) {
     t.equal(segment.speakerLabel, 'unknown')
   }
 })
@@ -121,26 +132,32 @@ tap.test('it splits a segment if the speaker changes mid-sentence', async (t) =>
     { 'start': 1, end: 1.5, speakerLabel: 'spk_0' },
     { 'start': 1.5, end: 3, speakerLabel: 'spk_1' }
   ]
-  const expectedResult = [
-    {
-      speakerLabel: 'spk_0',
-      start: 0,
-      end: 1,
-      text: 'Hello. My name is Bob and I am here with'
+  const expectedResult = {
+    speakers: {
+      spk_0: 'spk_0',
+      spk_1: 'spk_1'
     },
-    {
-      speakerLabel: 'spk_0',
-      start: 1,
-      end: 2,
-      text: ' Alice. How are you today, Alice?'
-    },
-    {
-      speakerLabel: 'spk_1' ,
-      start: 2,
-      end: 3, 
-      text: ' I am good actually thanks for asking.'
-    }
-  ]
+    segments: [
+      {
+        speakerLabel: 'spk_0',
+        start: 0,
+        end: 1,
+        text: 'Hello. My name is Bob and I am here with'
+      },
+      {
+        speakerLabel: 'spk_0',
+        start: 1,
+        end: 2,
+        text: ' Alice. How are you today, Alice?'
+      },
+      {
+        speakerLabel: 'spk_1',
+        start: 2,
+        end: 3,
+        text: ' I am good actually thanks for asking.'
+      }
+    ]
+  }
   const result = merge(whisperSegments, transcribeSegments)
   t.same(result, expectedResult)
 })
