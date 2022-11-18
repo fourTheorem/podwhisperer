@@ -109,3 +109,38 @@ tap.test('it identifies speaker as unknown if there is no speaker data', async (
     t.equal(segment.speakerLabel, 'unknown')
   }
 })
+
+tap.test('it splits a segment if the speaker changes mid-sentence', async (t) => {
+  const whisperSegments = [
+    { start: 0, end: 1, text: 'Hello. My name is Bob and I am here with' },
+    { start: 1, end: 2, text: ' Alice. How are you today, Alice? I am good actually' },
+    { start: 2, end: 3, text: ' thanks for asking.' }
+  ]
+  const transcribeSegments = [
+    { 'start': 0, end: 1, speakerLabel: 'spk_0' },
+    { 'start': 1, end: 1.5, speakerLabel: 'spk_0' },
+    { 'start': 1.5, end: 3, speakerLabel: 'spk_1' }
+  ]
+  const expectedResult = [
+    {
+      speakerLabel: 'spk_0',
+      start: 0,
+      end: 1,
+      text: 'Hello. My name is Bob and I am here with'
+    },
+    {
+      speakerLabel: 'spk_0',
+      start: 1,
+      end: 2,
+      text: ' Alice. How are you today, Alice?'
+    },
+    {
+      speakerLabel: 'spk_1' ,
+      start: 2,
+      end: 3, 
+      text: ' I am good actually thanks for asking.'
+    }
+  ]
+  const result = merge(whisperSegments, transcribeSegments)
+  t.same(result, expectedResult)
+})

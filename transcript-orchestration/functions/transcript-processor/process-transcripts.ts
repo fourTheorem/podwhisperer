@@ -32,7 +32,7 @@ export function merge(
     return acc
   }, [])
 
-  return whisperSegments.map((segment) => {
+  const segments = whisperSegments.map((segment) => {
     const latestSpeakerChange = closestSpeakerChange(speakerChangeIndex, segment.start)
 
     return {
@@ -40,4 +40,22 @@ export function merge(
       ...segment
     }
   })
+
+  for (let i = 0; i < segments.length - 1; i++) {
+    const currentSegment = segments[i]
+    const nextSegment = segments[i + 1]
+    if (currentSegment.speakerLabel !== nextSegment.speakerLabel && endsWithPartialSentence(currentSegment.text)) {
+      const lastSepIndex = Math.max(...['.', '!', '?'].map(sep => currentSegment.text.lastIndexOf(sep)))
+      const truncatedText = currentSegment.text.substring(0, lastSepIndex + 1)
+      const remainingText = currentSegment.text.substring(lastSepIndex + 1, currentSegment.text.length)
+      currentSegment.text = truncatedText
+      nextSegment.text = remainingText + nextSegment.text
+    }
+  }
+
+  return segments
+}
+
+function endsWithPartialSentence(text: string) {
+  return !text.endsWith('?') && !text.endsWith('!') && !text.endsWith('.')
 }
