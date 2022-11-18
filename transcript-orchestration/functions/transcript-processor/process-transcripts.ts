@@ -16,7 +16,8 @@ export function closestSpeakerChange(speakerChanges: SpeakerChangeEntry[], time:
       return speakerChange
     }
   }
-  return null
+  // If the time is smaller than the start time of the first entry, default to the first speaker
+  return speakerChanges[0]
 }
 
 export function merge(

@@ -1,6 +1,7 @@
 import { closestSpeakerChange, merge } from '../../process-transcripts'
 
 import tap from 'tap'
+import { TranscribeSpeakerSegment } from '../../types'
 
 tap.test('it finds the closes speaker change', async (t) => {
   const speakerChangeIndex = [
@@ -70,7 +71,7 @@ tap.test('it merges a simple set of files', async (t) => {
   t.same(result, expectedResult)
 })
 
-tap.test('it mergees segments where the first transcribe segment starts after the intiial audio silence', async (t) => {
+tap.test('it merges segments where the first transcribe segment starts after the intiial audio silence', async (t) => {
   const whisperSegments = [
     { start: 0, end: 7.04, text: ' Node.js is considered by many a game changer, possibly the biggest innovation of the decade' },
     { start: 7.04, end: 36.64, text: ' in web development.' }
@@ -94,4 +95,17 @@ tap.test('it mergees segments where the first transcribe segment starts after th
     }
   ]
   t.same(result, expectedResult)
+})
+
+tap.test('it identifies speaker as unknown if there is no speaker data', async (t) => {
+  const whisperSegments = [
+    { start: 0, end: 1, text: 'Hello' },
+    { start: 1, end: 2, text: 'Goodbye' }
+  ]
+  const transcribeSegments: TranscribeSpeakerSegment[] = []
+  const result = merge(whisperSegments, transcribeSegments)
+  t.same(result.length, 2)
+  for (const segment of result) {
+    t.equal(segment.speakerLabel, 'unknown')
+  }
 })

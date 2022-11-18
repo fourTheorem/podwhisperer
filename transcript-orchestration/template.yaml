@@ -68,6 +68,52 @@ Resources:
                 - sagemaker:DescribeTransformJob
               Resource: !Sub 'arn:${AWS::Partition}:sagemaker:${AWS::Region}:${AWS::AccountId}:transform-job/*'
 
+  AudioS3EventRuleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - events.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: GHASarS3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !GetAtt TranscriptionStateMachine.Arn
+        
+  AudioS3EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: default
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - 'Object Created'
+        detail:
+          bucket:
+            name:
+              - !Ref BucketName
+          object:
+            key:
+              - prefix: 'audio/'
+      Targets:
+        - Arn: !GetAtt TranscriptionStateMachine.Arn
+          Id: s3-eventbridge-to-transcription-step-function
+          InputTransformer:
+            InputPathsMap:
+              audioInputKey: '$.detail.object.key'
+            InputTemplate: '{"audioInputKey": "<audioInputKey>"}'
+          RoleArn: !GetAtt AudioS3EventRuleRole.Arn
+
   S3KeysFunction:
     Type: AWS::Serverless::Function
     Properties:
