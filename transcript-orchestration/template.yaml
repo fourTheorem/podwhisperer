@@ -34,6 +34,7 @@ Resources:
         ManifestCreatorFunctionArn: !GetAtt ManifestCreatorFunction.Arn
         TranscoderFunctionArn: !GetAtt TranscoderFunction.Arn
         TranscriptProcessorFunctionArn: !GetAtt TranscriptProcessorFunction.Arn
+        PullRequestFunctionArn: !GetAtt PullRequestFunction.Arn
         S3KeysFunctionArn: !GetAtt S3KeysFunction.Arn
         ModelName: !Ref ModelName
         BucketName: !Ref BucketName
@@ -46,6 +47,8 @@ Resources:
             FunctionName: !Ref TranscoderFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref S3KeysFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PullRequestFunction
         - S3CrudPolicy:
             BucketName: !Ref BucketName
         - Statement:
@@ -218,6 +221,44 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - functions/manifest-creator.js
+
+  PullRequestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.handleEvent
+      Timeout: 600
+      MemorySize: 1024
+      Runtime: nodejs16.x
+      Layers:
+        # https://github.com/lambci/git-lambda-layer
+        - !Sub 'arn:aws:lambda:${AWS::Region}:553035198032:layer:git-lambda2:8'
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+          POWERTOOLS_SERVICE_NAME: PullRequest
+          HOME: /tmp
+          GIT_USER_EMAIL: automation@awsbites.com
+          GIT_USER_NAME: Transcription Automation 
+          GIT_REPO_URL: https://github.com/awsbites/aws-bites-site.git
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref BucketName
+        - Statement:
+            - Effect: Allow
+              Action:  # These actions required so Step Functions can create an EventBridge Rule to allow .sync invocations
+                - 'ssm:GetParameter*'
+              Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/podwhisperer/gitHubUserCredentials'
+      Architectures:
+        - x86_64
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: true
+        EntryPoints:
+          - functions/pull-request/app.ts
 
 Outputs:
   StateMachineArn:

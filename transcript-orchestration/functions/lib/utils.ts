@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import { GetObjectCommand, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
-import { logger } from '../lib/lambda-common';
+import { logger } from './lambda-common';
 
 export async function getS3JSON<T = any>(s3Client: S3Client, bucket: string, key: string): Promise<T> {
   logger.info('Getting object', { bucket, key } )

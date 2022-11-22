@@ -10,7 +10,7 @@ export const mockedContext: Context = {
   logGroupName: '/aws/lambda/mockFunction',
   logStreamName: 'mock-log-stream',
   getRemainingTimeInMillis(): number {
-    return 999;
+    return 15 * 60 * 1000;
   },
   done(error?: Error, result?: any): void {
     return;

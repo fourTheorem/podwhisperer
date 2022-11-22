@@ -1,7 +1,7 @@
 import { logger, middify } from '../lib/lambda-common.js'
 import { TranscribeSpeakerSegment, WhisperSegment } from './types.js'
 import { S3Client } from '@aws-sdk/client-s3'
-import { getS3JSON, putS3JSON } from './utils.js'
+import { getS3JSON, putS3JSON } from '../lib/utils.js'
 import { merge } from './process-transcripts.js'
 
 const { BUCKET_NAME } = process.env

@@ -150,7 +150,8 @@ temp/
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -210,3 +211,4 @@ $RECYCLE.BIN/
 .local.env.json
 .ipynb_checkpoints
 samconfig.toml
+*.gitignored.*
