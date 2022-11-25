@@ -13,6 +13,7 @@ import { getS3JSON } from '../lib/utils'
 const GIT_HUB_CREDENTIALS_SSM_PARAMETER = '/podwhisperer/gitHubUserCredentials'
 
 const { BUCKET_NAME, GIT_REPO_URL, GIT_USER_EMAIL, GIT_USER_NAME } = envs
+const { TARGET_BRANCH } = process.env
 
 const ssmClient = new SSMClient({})
 const s3Client = new S3Client({})
@@ -80,7 +81,7 @@ export const handleEvent = middify(async (event: PullRequestEvent) => {
     logger.info('Adding transcript', { branchName })
     const newFilePath = path.join(tmpDir, repoName, 'src', '_transcripts', `${id}.json`)
     await mkdir(path.dirname(newFilePath), { recursive: true })
-    await writeFile(newFilePath, JSON.stringify(transcript, null, ' '))
+    await writeFile(newFilePath, JSON.stringify(transcript, null, '  '))
     await git.add(newFilePath)
 
     logger.info('Committing and pushing')
@@ -89,11 +90,10 @@ export const handleEvent = middify(async (event: PullRequestEvent) => {
     await git.push('origin', branchName, ['--set-upstream'])
 
     logger.info('Creating GitHub PR')
-    const gitHubToken = gitHubUserCredentials.split(':')[1]
-    const octokit = new Octokit({ auth: gitHubToken })
+    const octokit = new Octokit({ auth: password })
     const body = `Automatic pull request created from s3://${BUCKET_NAME}/${event.transcriptKey}`
     const head = branchName
-    const base = 'main'
+    const base = TARGET_BRANCH || 'main'
     const repoPath = gitUrl.pathname
     const [, owner,] = repoPath.split('/')
     const response = await octokit.request(
