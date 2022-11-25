@@ -4,11 +4,7 @@ import { S3Client } from '@aws-sdk/client-s3'
 import { getS3JSON, putS3JSON } from '../lib/utils.js'
 import { merge } from './process-transcripts.js'
 import { substituteVocabulary, VocabularySubstitutions } from './vocabulary'
-
-const { BUCKET_NAME } = process.env
-if (!BUCKET_NAME) {
-  throw new Error('BUCKET_NAME must be set')
-}
+import envs from '../lib/envs'
 
 type TranscriptEvent = {
   whisperOutputKey: string,
@@ -18,6 +14,8 @@ type TranscriptEvent = {
 
 const s3Client = new S3Client({})
 
+const { BUCKET_NAME } = envs
+
 /**
  * @param {Object} event - Input event to the Lambda function
  *
@@ -25,6 +23,7 @@ const s3Client = new S3Client({})
  */
 export const handleEvent = middify(async (event: TranscriptEvent) => {
   logger.info('Fetching whisper and transcribe outputs', { event })
+
   const [whisperOutput, transcribeOutput] = await Promise.all([
     getS3JSON(s3Client, BUCKET_NAME, event.whisperOutputKey),
     getS3JSON(s3Client, BUCKET_NAME, event.transcribeOutputKey)

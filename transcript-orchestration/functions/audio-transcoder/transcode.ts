@@ -14,11 +14,9 @@ export type AudioTranscodeOptions = {
 const s3Client = new S3Client({})
 
 /**
- * Transcode an audio file
+ * Transcode an audio file to MP3 format using FFmpeg
  *
  * @param options Options required to perform the transcode
- *
- * @returns Result
  */
 export const transcodeAudio = async (options: AudioTranscodeOptions) : Promise<void> => {
   logger.info('Transcoding audio with FFmpeg', options)

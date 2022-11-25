@@ -5,17 +5,15 @@ import { open, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import ReadableStream from 'readable-stream'
 
+import { Context } from 'aws-lambda'
 import { Upload } from '@aws-sdk/lib-storage'
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
 import { logger, middify } from '../lib/lambda-common'
 import { transcodeAudio } from './transcode'
-import { Context } from 'aws-lambda'
+import envs from '../lib/envs'
 
-const { BUCKET_NAME } = process.env
-if (!BUCKET_NAME) {
-  throw new Error('BUCKET_NAME must be set')
-}
+const { BUCKET_NAME } = envs
 
 type TranscodeEvent = {
   audioInputKey: string,
@@ -25,9 +23,7 @@ type TranscodeEvent = {
 const s3Client = new S3Client({})
 
 /**
- * @param {Object} event - Input event to the Lambda function
- *
- * @returns {Object} object - Object containing details of the stock buying transaction
+ * Lambda function handler to transcode an audio file on S3 to MP3 format
  */
 export const handleEvent = middify(async (event: TranscodeEvent, context: Context  ) => {
   logger.info('Transcoding audio', { event, BUCKET_NAME })
@@ -70,6 +66,7 @@ export const handleEvent = middify(async (event: TranscodeEvent, context: Contex
       unlink(tempInputFilePath)
       unlink(tempOutputFilePath)
     } catch (err) {
+      /* istanbul ignore next */
       logger.warn('Failed to delete temporary files', { err })
     }
   }

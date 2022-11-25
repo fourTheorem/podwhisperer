@@ -9,9 +9,8 @@ export type S3KeysEvent = {
 }
 
 /**
- * @param {Object} event - Input event to the Lambda function
- *
- * @returns {Object} object - Object containing details of the stock buying transaction
+ * Simple Lambda function handler to define the S3 keys used for inputs and output throughout the transcription 
+ * process based on the audio input file key
  */
 export const handleEvent = middify(async (event: S3KeysEvent, context: Context) => {
   logger.info('Defining S3 Keys', { event })

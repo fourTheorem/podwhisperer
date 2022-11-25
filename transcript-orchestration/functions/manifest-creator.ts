@@ -1,11 +1,10 @@
 import { logger, middify } from './lib/lambda-common.js'
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { S3Client } from '@aws-sdk/client-s3'
 import { basename } from 'node:path'
+import envs from './lib/envs'
+import { putS3JSON } from './lib/utils.js'
 
-const { BUCKET_NAME, SAGEMAKER_INPUTS_PREFIX } = process.env
-if (!BUCKET_NAME) {
-  throw new Error('BUCKET_NAME must be set')
-}
+const { BUCKET_NAME, SAGEMAKER_INPUTS_PREFIX } = envs
 
 type ManifestCreationEvent = {
   id: string,
@@ -15,9 +14,8 @@ type ManifestCreationEvent = {
 const s3Client = new S3Client({})
 
 /**
- * @param {Object} event - Input event to the Lambda function
- *
- * @returns {Object} object - Object containing details of the stock buying transaction
+ * Create a SageMaker Transform manifest file for one job only.
+ * The job parameters are stored in JSON and that JSON is referenced as the only entry in the "batch" manifest.
  */
 export const handleEvent = middify(async (event: ManifestCreationEvent) => {
   logger.info('Creating manifest', { event })
@@ -33,16 +31,8 @@ export const handleEvent = middify(async (event: ManifestCreationEvent) => {
 
   logger.info('Creating manifest and job parameters', { manifestKey, manifestContent, jobParamsKey, jobParams })
   const putResponses = await Promise.all([
-    s3Client.send(new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: manifestKey,
-      Body: JSON.stringify(manifestContent)
-    })),
-    s3Client.send(new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: jobParamsKey,
-      Body: JSON.stringify(jobParams)
-    }))
+    putS3JSON(s3Client, BUCKET_NAME, manifestKey, manifestContent),
+    putS3JSON(s3Client, BUCKET_NAME, jobParamsKey, jobParams)
   ])
 
   logger.info('Manifest created', { putResponses })

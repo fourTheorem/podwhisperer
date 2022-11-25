@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Anchor.fm episode downloader",
   "scripts": {
-    "test": "npx tap --ts **/tests/**/*.test.ts",
+    "test": "npx tap --coverage-report=html --ts **/tests/**/*.test.ts",
     "build": "tsc",
     "audit": "npm audit --omit dev"
   },

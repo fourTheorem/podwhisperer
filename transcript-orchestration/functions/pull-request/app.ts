@@ -1,19 +1,18 @@
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { logger, middify } from '../lib/lambda-common'
 import { simpleGit } from 'simple-git'
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
 import { S3Client } from '@aws-sdk/client-s3'
-import { getS3JSON } from '../lib/utils'
 import { Octokit } from 'octokit'
+
+import envs from '../lib/envs'
+import { logger, middify } from '../lib/lambda-common'
+import { getS3JSON } from '../lib/utils'
 
 const GIT_HUB_CREDENTIALS_SSM_PARAMETER = '/podwhisperer/gitHubUserCredentials'
 
-const { BUCKET_NAME, GIT_REPO_URL, GIT_USER_EMAIL, GIT_USER_NAME } = process.env
-if (!BUCKET_NAME || !GIT_REPO_URL || !GIT_USER_EMAIL || !GIT_USER_NAME) {
-  throw new Error('BUCKET_NAME, GIT_REPO_URL, GIT_USER_EMAIL or GIT_USER_NAME is not set')
-}
+const { BUCKET_NAME, GIT_REPO_URL, GIT_USER_EMAIL, GIT_USER_NAME } = envs
 
 const ssmClient = new SSMClient({})
 const s3Client = new S3Client({})
@@ -30,6 +29,18 @@ type PullRequestEvent = {
   transcriptKey: string
 }
 
+/**
+ * Lambda Function handler to create a GitHub Pull Request against a configured repository with the contents of a transcript
+ * retrieved from S3. The process:
+ * 
+ * - Clones the Git repository
+ * - Creates a branch and adds the transcript in a new commit
+ * - Creates a GitHub Pull Request against the main branch
+ * - Returns the GitHub PR URL
+ * 
+ * This function requires a GitHub Personal Access Token, preferably a fine-grained token. It should be stored with the username
+ * in a SSM SecureString Parameter `/podwhisperer/gitHubUserCredentials` in the format <Username>:<GitHubPersonalAccessToken>
+ */
 export const handleEvent = middify(async (event: PullRequestEvent) => {
   const transcript = await getS3JSON(s3Client, BUCKET_NAME, event.transcriptKey)
   const id = path.basename(event.transcriptKey).split('.')[0]
@@ -58,21 +69,20 @@ export const handleEvent = middify(async (event: PullRequestEvent) => {
       .addConfig('user.email', GIT_USER_EMAIL, true, 'global')
       .addConfig('user.name', GIT_USER_NAME, true, 'global')
       .addConfig('credential.helper', 'cache 900', true, 'global')
+
     const repoName = path.basename(gitUrl.pathname).split('.')[0]
     logger.info('Cloning', { tmpDir, localPath: repoName, url: GIT_REPO_URL })
     await git.clone(gitUrl.toString(), repoName)
 
     logger.info('Checking out new branch', { branchName })
     await git.cwd(path.resolve(tmpDir, repoName)).checkoutBranch(branchName, 'HEAD')
-    // await git.remote(['set-url', '--push', 'origin', gitUrl.toString()])
 
     logger.info('Adding transcript', { branchName })
     const newFilePath = path.join(tmpDir, repoName, 'src', '_transcripts', `${id}.json`)
     await mkdir(path.dirname(newFilePath), { recursive: true })
-    logger.info('Creating new file', { newFilePath })
-
     await writeFile(newFilePath, JSON.stringify(transcript, null, ' '))
     await git.add(newFilePath)
+
     logger.info('Committing and pushing')
     const title = `add episode ${id} transcript`
     await git.commit(`chore: ${title}`)
