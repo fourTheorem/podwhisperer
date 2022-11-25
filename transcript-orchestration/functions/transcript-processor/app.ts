@@ -3,6 +3,7 @@ import { TranscribeSpeakerSegment, WhisperSegment } from './types.js'
 import { S3Client } from '@aws-sdk/client-s3'
 import { getS3JSON, putS3JSON } from '../lib/utils.js'
 import { merge } from './process-transcripts.js'
+import { substituteVocabulary, VocabularySubstitutions } from './vocabulary'
 
 const { BUCKET_NAME } = process.env
 if (!BUCKET_NAME) {
@@ -29,7 +30,6 @@ export const handleEvent = middify(async (event: TranscriptEvent) => {
     getS3JSON(s3Client, BUCKET_NAME, event.transcribeOutputKey)
   ])
 
-
   const whisperSegments: WhisperSegment[] = whisperOutput.result.segments.map((segment: any) => ({
     start: segment.start,
     end: segment.end,
@@ -43,10 +43,19 @@ export const handleEvent = middify(async (event: TranscriptEvent) => {
   }))
 
   logger.info('Merging whisper and transcribe segments')
-  const mergedSegments = merge(whisperSegments, transcribeSegments)
+  const mergedTranscript = merge(whisperSegments, transcribeSegments)
 
-  logger.info('Transcript processed')
+  logger.info('Segments merged')
+  let vocabularySubstitutions
+  try {
+    vocabularySubstitutions = await getS3JSON(s3Client, BUCKET_NAME, 'vocabulary-substitutions.json') as any as VocabularySubstitutions
+  } catch (err) {
+    logger.warn('Unable to retrieve vocabulary substitutions', { err })
+  }
 
-  await putS3JSON(s3Client, BUCKET_NAME, event.processedTranscriptKey, mergedSegments)
+  if (vocabularySubstitutions) {
+    substituteVocabulary(mergedTranscript, vocabularySubstitutions)
+  }
+  await putS3JSON(s3Client, BUCKET_NAME, event.processedTranscriptKey, mergedTranscript)
   return null
 }) as unknown as ((event: TranscriptEvent) => Promise<null>) 

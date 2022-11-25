@@ -337,7 +337,9 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "InputPath": "$",
-      "OutputPath": "$",
+      "ResultSelector": {
+        "url.$": "$.Payload.prUrl"
+      },
       "ResultPath": "$.PRResult",
       "Parameters": {
         "FunctionName": "${PullRequestFunctionArn}",

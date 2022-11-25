@@ -1,0 +1,22 @@
+[
+ {
+  "type": "literal",
+  "search": "Owen",
+  "replacement": "Eoin"
+ },
+ {
+  "type": "literal",
+  "search": "Eoghan",
+  "replacement": "Eoin"
+ },
+ {
+  "type": "regex",
+  "search": "[A-Z]uciano",
+  "replacement": "Luciano"
+ },
+ {
+  "type": "literal",
+  "search": "AWS Bytes",
+  "replacement": "AWS Bites"
+ }
+]

@@ -1,16 +1,4 @@
-import { WhisperSegment, TranscribeSpeakerSegment } from './types'
-
-type MergedTranscriptSegment = {
-  speakerLabel: string,
-  start: number,
-  end: number,
-  text: string,
-}
-
-type MergedTranscript = {
-  segments: MergedTranscriptSegment[],
-  speakers: Record<string, string>
-}
+import { WhisperSegment, TranscribeSpeakerSegment, MergedTranscript } from './types'
 
 type SpeakerChangeEntry = { speakerLabel: string, start: number }
 
@@ -27,8 +15,7 @@ export function closestSpeakerChange(speakerChanges: SpeakerChangeEntry[], time:
 
 export function merge(
   whisperSegments: WhisperSegment[],
-  transcribeSegments: TranscribeSpeakerSegment[]): MergedTranscript
-{
+  transcribeSegments: TranscribeSpeakerSegment[]): MergedTranscript {
   const speakerLabels = new Set<string>()
 
   const speakerChangeIndex = transcribeSegments.reduce<SpeakerChangeEntry[]>((acc, segment) => {

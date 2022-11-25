@@ -9,3 +9,15 @@ export type TranscribeSpeakerSegment = {
   start: number, // 204.62
   end: number, // 218.55
 }
+
+export type MergedTranscriptSegment = {
+  speakerLabel: string,
+  start: number,
+  end: number,
+  text: string,
+}
+
+export type MergedTranscript = {
+  segments: MergedTranscriptSegment[],
+  speakers: Record<string, string>
+}
