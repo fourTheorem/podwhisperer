@@ -1,22 +1,32 @@
 [
- {
-  "type": "literal",
-  "search": "Owen",
-  "replacement": "Eoin"
- },
- {
-  "type": "literal",
-  "search": "Eoghan",
-  "replacement": "Eoin"
- },
- {
-  "type": "regex",
-  "search": "[A-Z]uciano",
-  "replacement": "Luciano"
- },
- {
-  "type": "literal",
-  "search": "AWS Bytes",
-  "replacement": "AWS Bites"
- }
+  {
+    "type": "literal",
+    "search": "Owen",
+    "replacement": "Eoin"
+  },
+  {
+    "type": "literal",
+    "search": "Eoghan",
+    "replacement": "Eoin"
+  },
+  {
+    "type": "regex",
+    "search": "[A-Z]uciano",
+    "replacement": "Luciano"
+  },
+  {
+    "type": "literal",
+    "search": "Mamineo",
+    "replacement": "Mammino"
+  },
+  {
+    "type": "literal",
+    "search": "Shanaghi",
+    "replacement": "Shanaghy"
+  },
+  {
+    "type": "literal",
+    "search": "AWS Bytes",
+    "replacement": "AWS Bites"
+  }
 ]
