@@ -21,12 +21,46 @@
   },
   {
     "type": "literal",
+    "search": "Momeno",
+    "replacement": "Mammino"
+  },
+  {
+    "type": "literal",
     "search": "Shanaghi",
+    "replacement": "Shanaghy"
+  },
+  {
+    "type": "literal",
+    "search": "Sinehi",
     "replacement": "Shanaghy"
   },
   {
     "type": "literal",
     "search": "AWS Bytes",
     "replacement": "AWS Bites"
-  }
+  },
+  {
+    "type": "literal",
+    "search": "Fortiorum",
+    "replacement": "fourTheorem"
+  },
+  {
+    "type": "literal",
+    "search": "Fortherem",
+    "replacement": "fourTheorem"
+  },
+  {
+    "type": "literal",
+    "search": "Fortheorem",
+    "replacement": "fourTheorem"
+  },
+  {
+    "type": "literal",
+    "search": "fortheorem.com",
+    "replacement": "fourtheorem.com"
+  },
+  {
+    "type": "literal",
+    "search": "Fourth Erem",
+    "replacement": "fourTheorem"
 ]

@@ -119,7 +119,7 @@
               "Resource": "arn:aws:states:::sagemaker:createTransformJob.sync",
               "ResultPath": "$.SageMakerOutput",
               "Parameters": {
-                "TransformJobName.$": "$$.Execution.Name",
+                "TransformJobName.$": "States.Hash($$.Execution.Name, 'MD5')",
                 "ModelName": "${ModelName}",
                 "MaxConcurrentTransforms": 1,
                 "BatchStrategy": "SingleRecord",
@@ -173,7 +173,7 @@
                 {
                   "Variable": "$.inputs.forceTranscribe",
                   "BooleanEquals": true,
-                  "Next": "Transcode Audio"
+                  "Next": "Is MP3?"
                 }
               ],
               "Default": "HeadObject Transcribe Output"
@@ -194,9 +194,20 @@
                   ],
                   "Comment": "NoSuchKey",
                   "ResultPath": "$.HeadObjectTranscribeOutputCatch",
-                  "Next": "Transcode Audio"
+                  "Next": "Is MP3?"
                 }
               ]
+            },
+            "Is MP3?": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.inputs.audioInputKey",
+                  "StringMatches": "*.mp3",
+                  "Next": "Start Transcription Job"
+                }
+              ],
+              "Default": "Transcode Audio"
             },
             "Transcode Audio": {
               "Type": "Task",
@@ -245,8 +256,7 @@
               "Resource": "arn:aws:states:::aws-sdk:transcribe:startTranscriptionJob",
               "Next": "Wait for Transcription Job",
               "ResultSelector": {
-                "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName",
-                "TranscriptionJobStatus.$": "$.TranscriptionJob.TranscriptionJobStatus"
+                "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName"
               },
               "ResultPath": "$.TranscriptionJob"
             },
@@ -263,9 +273,8 @@
               },
               "Resource": "arn:aws:states:::aws-sdk:transcribe:getTranscriptionJob",
               "ResultSelector": {
-                "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName",
                 "TranscriptionJobStatus.$": "$.TranscriptionJob.TranscriptionJobStatus",
-                "TranscriptKey.$": "$.TranscriptionJob.Transcript.TranscriptFileUri"
+                "TranscriptionJobName.$": "$.TranscriptionJob.TranscriptionJobName"
               },
               "ResultPath": "$.TranscriptionJob"
             },
@@ -279,7 +288,7 @@
                   "Comment": "Completed"
                 },
                 {
-                  "Variable": "$.TranscriptionJob",
+                  "Variable": "$.TranscriptionJob.TranscriptionJobStatus",
                   "StringMatches": "FAILED",
                   "Comment": "Fail",
                   "Next": "Transcribe Job Failed"

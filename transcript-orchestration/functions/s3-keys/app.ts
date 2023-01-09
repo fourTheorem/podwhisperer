@@ -18,12 +18,13 @@ export const handleEvent = middify(async (event: S3KeysEvent, context: Context) 
   const base = basename(audioInputKey)
   const stem = base.split('.')[0]
   const keys = {
-    mp3Key: `/audio/${stem}.mp3`,
+    mp3Key: `audio/${stem}.mp3`,
     whisperOutputKey: `${WHISPER_OUTPUT_PREFIX}/${stem}.json`,
     whisperPrefix: WHISPER_OUTPUT_PREFIX,
     transcribeOutputKey: `transcribe-output/${stem}`,
     processedTranscriptKey: `processed-transcripts/${stem}.json`,
   }
+
   logger.info('Keys', { keys })
   return keys
 }) as unknown as ((event: S3KeysEvent) => Promise<null>) 
