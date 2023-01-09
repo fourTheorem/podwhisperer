@@ -9,6 +9,7 @@
       "Parameters": {
         "forceTranscribe": false,
         "forceWhisper": false,
+        "createPR": true,
         "bucketName": "${BucketName}"
       }
     },
@@ -340,7 +341,18 @@
           "BackoffRate": 1.5
         }
       ],
-      "Next": "Create GitHub PR"
+       "Next": "Create PR?"
+    },
+    "Create PR?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.inputs.createPR",
+          "BooleanEquals": true,
+          "Next": "Create GitHub PR"
+        }
+      ],
+      "Default": "End"
     },
     "Create GitHub PR": {
       "Type": "Task",
