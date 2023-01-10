@@ -1,8 +1,8 @@
-import { logger, middify } from '../lib/lambda-common.js'
+import { logger, middify } from '../lib/lambda-common'
 import { TranscribeSpeakerSegment, WhisperSegment } from './types.js'
 import { S3Client } from '@aws-sdk/client-s3'
-import { getS3JSON, putS3JSON } from '../lib/utils.js'
-import { merge } from './process-transcripts.js'
+import { getS3JSON, putS3JSON } from '../lib/utils'
+import { merge } from './process-transcripts'
 import { substituteVocabulary, VocabularySubstitutions } from './vocabulary'
 import envs from '../lib/envs'
 

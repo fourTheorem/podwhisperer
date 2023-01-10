@@ -24,13 +24,15 @@ jobs:
       - run: npm ci
       - run: npm run audit
       - run: npm test
+        env:
+          AWS_REGION: "eu-west-1"
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.github_token }}
           flag-name: run-node-18
           parallel: true
-          path-to-lcov: coverage/lcov.info
+          path-to-lcov: transcript-orchestration/coverage/lcov.info
   finish:
     needs: build
     runs-on: ubuntu-latest
@@ -40,4 +42,4 @@ jobs:
         with:
           github-token: ${{ secrets.github_token }}
           parallel-finished: true
-          path-to-lcov: coverage/lcov.info
+          path-to-lcov: transcript-orchestration/coverage/lcov.info
