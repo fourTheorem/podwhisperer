@@ -1,6 +1,8 @@
 # 🎙👂 podwhisperer
 A completely automated podcast audio transcription workflow with super accurate results!
 
+> **Note**: this project was presented in [AWS Bites](https://awsbites.com/) Podcast. [Check out the full episode](https://awsbites.com/63-how-to-automate-transcripts-with-amazon-transcribe-and-openai-whisper/)! 👈
+
 This project uses:
  - [OpenAI Whisper](https://github.com/openai/whisper) for super accurate transcription
  - [Amazon Transcribe](https://aws.amazon.com/transcribe/) to add speaker identification
