@@ -73,3 +73,10 @@ That S3 object upload will create an EventBridge event to trigger the transcript
 
 By default, the transcription workflow will attempt to create a Pull Request against a static website's GitHub repository. The GitHub repository is configured in the Pull Request Lambda Function's [environment variables](https://github.com/fourTheorem/podwhisperer/blob/cc73c5d4d52dc01f2249a032a9e2186012e24201/transcript-orchestration/template.yaml#L230). You can modify this, and the [pull request creation code](https://github.com/fourTheorem/podwhisperer/blob/main/transcript-orchestration/functions/pull-request/app.ts) if you want to have PRs with new transcripts created as part of the workflow. 
 If you want to turn this feature off altogether, you can simply change the `createPR` default value in the Step Function's inputs from `true` to `false` [here](https://github.com/fourTheorem/podwhisperer/blob/cc73c5d4d52dc01f2249a032a9e2186012e24201/transcript-orchestration/statemachine/transcription-step-function.asl.json#L12).
+
+
+### Step function architecture
+
+To have a better feeling for what the process looks like you can check out the following picture for a visualization of the Step Function definition:
+
+[![Overview of the step function](/docs/step-function-overview.png)](/docs/step-function-overview.png)
