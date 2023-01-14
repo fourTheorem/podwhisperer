@@ -84,7 +84,7 @@ You can deploy this complete application to your own AWS account. There are a fe
 
    ```bash
    sam build --parallel
-   sam deploy --guided  # It should be sufficient to accept all defaults when prompted
+   sam deploy --guided --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND # It should be sufficient to accept all defaults when prompted
    ```
 
 That's it! You can now test the entire transcription flow. The entire process is trigged when you upload an audio file to the newly-created S3 Bucket:
