@@ -71,7 +71,7 @@ You can deploy this complete application to your own AWS account. There are a fe
    docker build -t $REPOSITORY_URI .
 
    # Log in to ECR with Docker (make sure to set AWS_REGION and AWS_ACCCOUNT_ID)
-   aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+   aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
 
    # Push the container image to ECR
    docker push $REPOSITORY_URI
