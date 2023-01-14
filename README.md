@@ -27,7 +27,7 @@ This project uses AWS SAM with nested stacks to deploy all but the first of thes
 ## Prerequisites
 
 - Docker
-- nodeJS 14.x and npm
+- nodeJS 16.x and npm 8.x
 - esbuild
 
 ## Getting Started
