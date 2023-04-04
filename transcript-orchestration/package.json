@@ -1,9 +1,9 @@
 {
-  "name": "episode-downloader",
+  "name": "transcript-orchestration",
   "version": "1.0.0",
-  "description": "Anchor.fm episode downloader",
+  "description": "Workflow and utility Lambda functions for orchestrating transcripts from Video/Audio inputs",
   "scripts": {
-    "test": "npx tap --coverage-report=html --coverage-report=lcov --ts **/tests/**/*.test.ts",
+    "test": "vitest run --coverage",
     "build": "tsc",
     "audit": "npm audit --omit dev"
   },
@@ -30,10 +30,10 @@
     "@types/feedparser": "^2.2.5",
     "@types/ffmpeg": "^1.0.4",
     "@types/readable-stream": "^2.3.15",
-    "@types/tap": "^15.0.7",
     "@types/wtfnode": "^0.7.0",
     "@typescript-eslint/eslint-plugin": "^5.48.1",
     "@typescript-eslint/parser": "^5.48.1",
+    "@vitest/coverage-c8": "^0.29.2",
     "aws-sdk-client-mock": "^2.0.1",
     "eslint": "^8.31.0",
     "eslint-config-standard": "^17.0.0",
@@ -41,8 +41,8 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-n": "^15.6.0",
     "eslint-plugin-promise": "^6.1.1",
-    "tap": "^16.3.3",
     "ts-node": "^10.9.1",
-    "typescript": "^4.9.4"
+    "typescript": "^4.9.4",
+    "vitest": "^0.29.2"
   }
 }
