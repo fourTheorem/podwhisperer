@@ -10,7 +10,8 @@
         "forceTranscribe": false,
         "forceWhisper": false,
         "createPR": true,
-        "bucketName": "${BucketName}"
+        "bucketName": "${BucketName}",
+        "instanceType": "ml.m4.xlarge"
       }
     },
     "ApplyDefaults": {
@@ -143,7 +144,7 @@
                 },
                 "TransformResources": {
                   "InstanceCount": 1,
-                  "InstanceType": "ml.m4.xlarge"
+                  "InstanceType.$": "$.inputs.instanceType"
                 }
               },
               "Next": "Copy Whisper Transcript"
