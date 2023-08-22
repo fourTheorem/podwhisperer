@@ -2,7 +2,7 @@
 # implement the scoring for your own algorithm.
 
 from __future__ import print_function
-
+from utils import extract_audio_from_mp4
 import os
 import logging
 import json
@@ -57,6 +57,10 @@ def transformation():
         os.close(fd)
         logger.info(f"Downloading s3://{bucket_name}/{object_key} to {filename}")
         s3_client.download_file(bucket_name, object_key, filename)
+
+        if filename.split('.')[-1] == 'mp4': # convert to audio file
+            audio_file_path = extract_audio_from_mp4(filename)
+            filename = audio_file_path
 
         logger.info(f"Loading model {model_name}")
         model = whisper.load_model(model_name)
