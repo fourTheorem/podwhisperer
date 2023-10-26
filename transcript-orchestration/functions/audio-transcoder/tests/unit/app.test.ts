@@ -7,7 +7,7 @@ import { sdkStreamMixin } from '@aws-sdk/util-stream-node'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { mockedContext } from '../../../mock-utils/lambda-context'
 import { test, expect, vi } from 'vitest'
-process.env.BUCKET_NAME = 'test-bucket'
+
 import * as app from '../../app'
 import * as transcode from '../../transcode'
 

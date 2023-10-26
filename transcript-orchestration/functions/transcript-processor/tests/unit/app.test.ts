@@ -10,7 +10,6 @@ import { test, assert } from 'vitest'
 import { VocabularySubstitutions } from '../../vocabulary'
 import { MergedTranscript } from '../../types'
 
-process.env.BUCKET_NAME = 'test-bucket'
 import { handleEvent } from '../../app'
 
 const mockS3 = mockClient(S3Client)

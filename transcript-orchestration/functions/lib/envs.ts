@@ -8,7 +8,7 @@ interface Environment {
  * This eliminates the need to check the existence of each environment variable where it is used.
  */
 const envProxy: Environment = new Proxy({}, {
-  get(target: Record<string, string>, name: string): string {
+  get(_target: Record<string, string>, name: string): string {
     const value = process.env[name]
     if (!value) {
       throw new Error(`Environment variable ${name} is not set`)
