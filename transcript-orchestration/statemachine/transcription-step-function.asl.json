@@ -342,43 +342,6 @@
           "BackoffRate": 1.5
         }
       ],
-       "Next": "Create PR?"
-    },
-    "Create PR?": {
-      "Type": "Choice",
-      "Choices": [
-        {
-          "Variable": "$.inputs.createPR",
-          "BooleanEquals": true,
-          "Next": "Create GitHub PR"
-        }
-      ],
-      "Default": "End"
-    },
-    "Create GitHub PR": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "InputPath": "$",
-      "ResultSelector": {
-        "url.$": "$.Payload.prUrl"
-      },
-      "ResultPath": "$.PRResult",
-      "Parameters": {
-        "FunctionName": "${PullRequestFunctionArn}",
-        "Payload": {
-          "transcriptKey.$": "$.outputs.keys.processedTranscriptKey"
-        }
-      },
-      "Retry": [
-        {
-          "ErrorEquals": [
-            "States.TaskFailed"
-          ],
-          "IntervalSeconds": 5,
-          "MaxAttempts": 2,
-          "BackoffRate": 1.5
-        }
-      ],
       "Next": "End"
     },
     "End": {
