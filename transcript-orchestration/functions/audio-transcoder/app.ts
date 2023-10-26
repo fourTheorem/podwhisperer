@@ -65,8 +65,7 @@ export const handleEvent = middify(async (event: TranscodeEvent, context: Contex
     try {
       unlink(tempInputFilePath)
       unlink(tempOutputFilePath)
-    } catch (err) {
-      /* istanbul ignore next */
+    } /* c8 ignore next 3 */ catch (err) {
       logger.warn('Failed to delete temporary files', { err })
     }
   }

@@ -1,23 +1,23 @@
-import { closestSpeakerChange, merge } from '../../process-transcripts'
+import { test, assert } from 'vitest'
 
-import tap from 'tap'
+import { closestSpeakerChange, merge } from '../../process-transcripts'
 import { TranscribeSpeakerSegment } from '../../types'
 
-tap.test('it finds the closes speaker change', async (t) => {
+test('it finds the closes speaker change', () => {
   const speakerChangeIndex = [
     { speakerLabel: 'spk_0', start: 0 },
     { speakerLabel: 'spk_1', start: 3 }
   ]
 
-  t.same(closestSpeakerChange(speakerChangeIndex, 0)?.speakerLabel, 'spk_0')
-  t.same(closestSpeakerChange(speakerChangeIndex, 1)?.speakerLabel, 'spk_0')
-  t.same(closestSpeakerChange(speakerChangeIndex, 2)?.speakerLabel, 'spk_0')
-  t.same(closestSpeakerChange(speakerChangeIndex, 3)?.speakerLabel, 'spk_1')
-  t.same(closestSpeakerChange(speakerChangeIndex, 4)?.speakerLabel, 'spk_1')
-  t.same(closestSpeakerChange(speakerChangeIndex, 100)?.speakerLabel, 'spk_1')
+  assert.equal(closestSpeakerChange(speakerChangeIndex, 0)?.speakerLabel, 'spk_0')
+  assert.equal(closestSpeakerChange(speakerChangeIndex, 1)?.speakerLabel, 'spk_0')
+  assert.equal(closestSpeakerChange(speakerChangeIndex, 2)?.speakerLabel, 'spk_0')
+  assert.equal(closestSpeakerChange(speakerChangeIndex, 3)?.speakerLabel, 'spk_1')
+  assert.equal(closestSpeakerChange(speakerChangeIndex, 4)?.speakerLabel, 'spk_1')
+  assert.equal(closestSpeakerChange(speakerChangeIndex, 100)?.speakerLabel, 'spk_1')
 })
 
-tap.test('it merges a simple set of files', async (t) => {
+test('it merges a simple set of files', () => {
   const whisperSegments = [{
     start: 0,
     end: 2,
@@ -74,10 +74,10 @@ tap.test('it merges a simple set of files', async (t) => {
     ]
   }
 
-  t.same(result, expectedResult)
+  assert.deepEqual(result, expectedResult)
 })
 
-tap.test('it merges segments where the first transcribe segment starts after the intiial audio silence', async (t) => {
+test('it merges segments where the first transcribe segment starts after the intiial audio silence', async () => {
   const whisperSegments = [
     { start: 0, end: 7.04, text: ' Node.js is considered by many a game changer, possibly the biggest innovation of the decade' },
     { start: 7.04, end: 36.64, text: ' in web development.' }
@@ -105,23 +105,23 @@ tap.test('it merges segments where the first transcribe segment starts after the
       }
     ]
   }
-  t.same(result, expectedResult)
+  assert.deepEqual(result, expectedResult)
 })
 
-tap.test('it identifies speaker as unknown if there is no speaker data', async (t) => {
+test('it identifies speaker as unknown if there is no speaker data', async () => {
   const whisperSegments = [
     { start: 0, end: 1, text: 'Hello' },
     { start: 1, end: 2, text: 'Goodbye' }
   ]
   const transcribeSegments: TranscribeSpeakerSegment[] = []
   const result = merge(whisperSegments, transcribeSegments)
-  t.same(result.segments.length, 2)
+  assert.equal(result.segments.length, 2)
   for (const segment of result.segments) {
-    t.equal(segment.speakerLabel, 'unknown')
+    assert.equal(segment.speakerLabel, 'unknown')
   }
 })
 
-tap.test('it splits a segment if the speaker changes mid-sentence', async (t) => {
+test('it splits a segment if the speaker changes mid-sentence', () => {
   const whisperSegments = [
     { start: 0, end: 1, text: 'Hello. My name is Bob and I am here with' },
     { start: 1, end: 2, text: ' Alice. How are you today, Alice? I am good actually' },
@@ -159,5 +159,5 @@ tap.test('it splits a segment if the speaker changes mid-sentence', async (t) =>
     ]
   }
   const result = merge(whisperSegments, transcribeSegments)
-  t.same(result, expectedResult)
+  assert.deepEqual(result, expectedResult)
 })

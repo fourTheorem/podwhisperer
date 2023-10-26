@@ -1,6 +1,5 @@
 import { Context } from 'aws-lambda';
 
-/* istanbul ignore next */
 export const mockedContext: Context = {
   callbackWaitsForEmptyEventLoop: false,
   functionName: 'mockFunction',

@@ -1,9 +1,9 @@
 import { substituteVocabulary, VocabularySubstitutions } from '../../vocabulary'
 
-import tap from 'tap'
+import { test, assert } from 'vitest'
 import { MergedTranscript } from '../../types'
 
-tap.test('it substitutes with literal and regex searches', async (t) => {
+test('it substitutes with literal and regex searches', async () => {
   const transcript: MergedTranscript = {
     speakers: {
       'spk_0': 'a',
@@ -47,6 +47,6 @@ tap.test('it substitutes with literal and regex searches', async (t) => {
     }
   ]
   substituteVocabulary(transcript, vocab)
-  t.equal(transcript.segments[0].text, 'Hello my name is Eoin and this is AWS Bites.')
-  t.equal(transcript.segments[1].text, ' Hi, my name is Luciano and we are going to talk about Lambda!')
+  assert.equal(transcript.segments[0].text, 'Hello my name is Eoin and this is AWS Bites.')
+  assert.equal(transcript.segments[1].text, ' Hi, my name is Luciano and we are going to talk about Lambda!')
 })
