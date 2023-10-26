@@ -3,7 +3,7 @@ import { Readable } from 'node:stream'
 import { resolve } from 'node:path'
 
 import { mockClient } from 'aws-sdk-client-mock'
-import { sdkStreamMixin } from '@aws-sdk/util-stream-node'
+import { sdkStreamMixin } from '@smithy/util-stream'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { test, assert } from 'vitest'
 
