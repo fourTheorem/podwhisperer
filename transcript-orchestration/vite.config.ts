@@ -2,6 +2,9 @@ import { defineConfig, defaultExclude } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    globalSetup: [
+      './tests/setup.ts'
+    ],
     coverage: {
       reporter: ['text', 'html', 'lcov'],
       exclude: [

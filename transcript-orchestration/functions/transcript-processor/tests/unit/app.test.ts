@@ -3,14 +3,13 @@ import { Readable } from 'node:stream'
 import { resolve } from 'node:path'
 
 import { mockClient } from 'aws-sdk-client-mock'
-import { sdkStreamMixin } from '@aws-sdk/util-stream-node'
+import { sdkStreamMixin } from '@smithy/util-stream'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { test, assert } from 'vitest'
 
 import { VocabularySubstitutions } from '../../vocabulary'
 import { MergedTranscript } from '../../types'
 
-process.env.BUCKET_NAME = 'test-bucket'
 import { handleEvent } from '../../app'
 
 const mockS3 = mockClient(S3Client)

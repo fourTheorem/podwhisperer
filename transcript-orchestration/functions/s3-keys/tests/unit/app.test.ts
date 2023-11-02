@@ -1,8 +1,6 @@
 import { test, expect } from 'vitest'
 import { handleEvent, S3KeysEvent } from '../../app'
 
-process.env.BUCKET_NAME = 'test-bucket'
-
 const testState: { options?: S3KeysEvent } = {}
 
 test('constructs keys from audio input key', async (t) => {

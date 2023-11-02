@@ -3,11 +3,11 @@ import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import { mockClient } from 'aws-sdk-client-mock'
-import { sdkStreamMixin } from '@aws-sdk/util-stream-node'
+import { sdkStreamMixin } from '@smithy/util-stream'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { mockedContext } from '../../../mock-utils/lambda-context'
 import { test, expect, vi } from 'vitest'
-process.env.BUCKET_NAME = 'test-bucket'
+
 import * as app from '../../app'
 import * as transcode from '../../transcode'
 
