@@ -31,8 +31,8 @@ You will need the following build tooling installed.
 - [AWS SAM](https://aws.amazon.com/serverless/sam/), used to build and deploy most of the application
 - The [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - esbuild
+- SLIC Watch: By default, the target AWS account should have the [SLIC Watch](https://github.com/fourTheorem/slic-watch) SAR Application installed. It can be installed by going to _[this page](https://serverlessrepo.aws.amazon.com/applications/eu-west-1/949339270388/slic-watch-app) in the AWS Console. SLIC Watch is used to create alarms and dashboards for our transcription application. If you want to skip this option, just remove the single line referring to the `SlicWatch-v2` macro from the relevant template, [transcript-orchestration/template.yaml](https://github.com/fourTheorem/podwhisperer/blob/cc73c5d4d52dc01f2249a032a9e2186012e24201/transcript-orchestration/template.yaml#L4).
 
-By default, the target AWS account should have the [SLIC Watch](https://github.com/fourTheorem/slic-watch) SAR Application installed. It can be installed by going to _[this page](https://serverlessrepo.aws.amazon.com/applications/eu-west-1/949339270388/slic-watch-app) in the AWS Console. SLIC Watch is used to create alarms and dashboards for our transcription application. If you want to skip this option, just remove the single line referring to the `SlicWatch-v2` macro from the relevant template, [transcript-orchestration/template.yaml](https://github.com/fourTheorem/podwhisperer/blob/cc73c5d4d52dc01f2249a032a9e2186012e24201/transcript-orchestration/template.yaml#L4).
 
 ## Getting Started
 
