@@ -68,7 +68,7 @@ You can deploy this complete application to your own AWS account.
    cd whisper-image
 
    # Build the container image
-   docker build -t $REPOSITORY_URI .
+   docker build --platform linux/amd64 -t $REPOSITORY_URI .
 
    # Log in to ECR with Docker (make sure to set AWS_REGION and AWS_ACCCOUNT_ID)
    aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
