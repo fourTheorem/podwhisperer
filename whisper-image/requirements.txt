@@ -1,4 +1,4 @@
 boto3==1.24.96
-Flask==2.2.2
-gunicorn==20.1.0
+Flask==3.0.1
+gunicorn==21.2.0 
 openai-whisper==20230918
