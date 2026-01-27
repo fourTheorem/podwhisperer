@@ -1,0 +1,7 @@
+{
+  "python.autoComplete.extraPaths": ["${workspaceFolder}/example-image/src"],
+  "editor.codeActionsOnSave": {
+    "source.organizeImports.biome": "explicit",
+    "source.fixAll.biome": "explicit"
+  }
+}

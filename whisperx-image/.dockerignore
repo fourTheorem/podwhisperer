@@ -1,0 +1,28 @@
+# Test files
+tests/
+**/*.test.py
+**/*_test.py
+
+# Dev config
+pyproject.toml
+Makefile
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore

@@ -1,0 +1,6 @@
+packages:
+  - 'cdk'
+  - 'lambdas/*'
+  - 'packages/*'
+onlyBuiltDependencies:
+  - lefthook
