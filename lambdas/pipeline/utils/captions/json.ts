@@ -103,7 +103,7 @@ export function generateJson(options: GeneratorOptions): string {
 
   // Build the speakers object for output
   const speakers: Record<string, string> = {}
-  for (const [originalName, { label, displayName }] of Object.entries(
+  for (const [_originalName, { label, displayName }] of Object.entries(
     speakerMapping,
   )) {
     speakers[label] = displayName

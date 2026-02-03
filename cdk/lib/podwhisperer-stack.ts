@@ -303,7 +303,7 @@ export class PodwhispererStack extends cdk.Stack {
     // EventBridge rule to capture all ECS events and send them to CloudWatch Logs
     // Filters by cluster ARN to capture ALL ECS events for this cluster
     // The CloudWatchLogGroup target automatically creates the necessary resource policy
-    const ecsEventsRule = new events.Rule(this, 'EcsEventsRule', {
+    const _ecsEventsRule = new events.Rule(this, 'EcsEventsRule', {
       ruleName: 'EventsToLogsEcsRule', // Matches AWS console naming pattern
       eventPattern: {
         source: ['aws.ecs'],
