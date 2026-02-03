@@ -1,0 +1,16 @@
+{
+  "name": "@podwhisperer/config",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^4.0.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+# Core ML (install from PyTorch cu121 index via pip --index-url)
+torch==2.5.1
+torchaudio==2.5.1
+
+# cuDNN 9 for torch (cuDNN 8 extracted separately in Dockerfile)
+nvidia-cudnn-cu12==9.1.0.70
+
+# cuBLAS 11 for ctranslate2
+nvidia-cublas-cu11
+
+# WhisperX and transcription
+whisperx==3.3.1
+faster-whisper==1.1.0
+ctranslate2==4.4.0
+transformers==4.47.1
+
+# Pyannote for diarization
+pyannote.audio==3.3.2
+
+# Audio processing
+matplotlib==3.9.4
+soundfile==0.13.1
+scipy==1.15.1
+numpy==2.2.2
+
+# Existing deps (kept from current requirements)
+nvidia-ml-py==13.580.82
+boto3>=1.42.1
+psutil==7.1.3
