@@ -134,6 +134,7 @@ const handler = async (event: S3EventBridgeEvent, context: DurableContext) => {
     context.logger.info('Transcription completed', {
       inputKey: key,
       outputKey: result.rawTranscriptKey,
+      stats: result.stats,
     })
     rawTranscriptKey = result.rawTranscriptKey
   }

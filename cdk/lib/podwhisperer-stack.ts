@@ -44,12 +44,16 @@ export class PodwhispererStack extends cdk.Stack {
     // Extract transcription config for convenience
     const transcriptionConfig = pipelineConfig.transcription
 
-    // Fetch HuggingFace token from SSM Parameter Store at synthesis time
-    // Note: valueFromLookup makes an API call and caches the result in cdk.context.json
-    const hfToken = ssm.StringParameter.valueFromLookup(
-      this,
-      transcriptionConfig.hfTokenSsmPath,
-    )
+    // Reference SSM parameter for runtime injection via ECS secrets
+    // This does NOT fetch the value at synth time - it creates a reference for ECS to resolve at runtime
+    const hfTokenParameter =
+      ssm.StringParameter.fromSecureStringParameterAttributes(
+        this,
+        'HfTokenParameter',
+        {
+          parameterName: transcriptionConfig.hfTokenSsmPath,
+        },
+      )
 
     // Generate pipeline config layer content
     const layerDir = join(
@@ -230,13 +234,18 @@ export class PodwhispererStack extends cdk.Stack {
     })
 
     // Whisper transcription container - model is baked into image via build arg
+    // HF_TOKEN is passed via BuildKit secret (not stored in image layers)
+    // The token must be set as HF_TOKEN environment variable when running cdk deploy
     const image = ecs.ContainerImage.fromAsset(
       join(__dirname, '..', '..', 'whisperx-image'),
       {
         platform: Platform.LINUX_AMD64,
         buildArgs: {
           MODEL_NAME: transcriptionConfig.model,
-          HF_TOKEN: hfToken,
+        },
+        buildSecrets: {
+          // Use 'env=HF_TOKEN' to read from environment variable (Docker BuildKit format)
+          HF_TOKEN: 'env=HF_TOKEN',
         },
       },
     )
@@ -380,6 +389,10 @@ export class PodwhispererStack extends cdk.Stack {
         BUCKET_NAME: bucket.bucketName,
         WHISPER_CONFIG: JSON.stringify(whisperRuntimeConfig),
         JOB_TIMEOUT_MINUTES: String(transcriptionConfig.jobTimeoutMinutes),
+      },
+      // HF_TOKEN injected at runtime from SSM (not baked into image)
+      secrets: {
+        HF_TOKEN: ecs.Secret.fromSsmParameter(hfTokenParameter),
       },
       gpuCount: 1,
     })

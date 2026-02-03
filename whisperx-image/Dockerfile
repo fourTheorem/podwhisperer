@@ -34,18 +34,18 @@ RUN pip download nvidia_cudnn_cu11==8.9.6.50 -d /tmp && \
 ENV LD_LIBRARY_PATH=/opt/cudnn8:/usr/local/lib/python3.12/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.12/dist-packages/nvidia/cublas/lib:$LD_LIBRARY_PATH
 
 # Build args
-ARG HF_TOKEN
 ARG MODEL_NAME=large-v2
 
-# Expose as env vars for runtime
-ENV HF_TOKEN=${HF_TOKEN}
+# Expose model name as env var for runtime
 ENV MODEL_NAME=${MODEL_NAME}
 
 # Pre-download whisperx model (uses CPU here since no GPU at build time)
 RUN python -c "import whisperx; whisperx.load_model('${MODEL_NAME}', 'cpu', compute_type='int8', language='en')"
 
-# Pre-download pyannote diarization models
-RUN python -c "from whisperx.diarize import DiarizationPipeline; DiarizationPipeline(use_auth_token='${HF_TOKEN}', device='cpu')"
+# Pre-download pyannote diarization models using BuildKit secret
+# The secret is only available during this RUN command and is NOT persisted in image layers
+RUN --mount=type=secret,id=HF_TOKEN \
+    python -c "token = open('/run/secrets/HF_TOKEN').read().strip(); from whisperx.diarize import DiarizationPipeline; DiarizationPipeline(use_auth_token=token, device='cpu')"
 
 # Pre-download alignment model for English
 RUN python -c "import whisperx; whisperx.load_align_model(language_code='en', device='cpu')"

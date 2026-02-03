@@ -180,12 +180,12 @@ aws ssm put-parameter \
   --value "hf_your_token_here"
 ```
 
-> [!IMPORTANT]
-> **Security Note:** This token is embedded in the Docker image as a build argument and environment variable, making it visible at the container level. This is required because we pre-load all models (Whisper, segmentation, diarization) into the container image at build time, enabling faster job processing without re-downloading models for each transcription.
+> [!NOTE]
+> **Security:** The token is handled securely:
+> - **Build time**: Uses Docker BuildKit secrets (not stored in image layers)
+> - **Runtime**: Injected via SSM Parameter Store by ECS (not baked into image)
 >
-> While this may be flagged as a security concern, it is acceptable for most deployments if:
-> - The token has **read-only** permissions (as configured above)
-> - The token only grants access to public gated models
+> The token must be available as an environment variable (`HF_TOKEN`) when running `cdk deploy`.
 >
 > If you're uncertain or have strict security requirements, consider creating a **dedicated HuggingFace account** with no private content and generate the token from that account.
 
@@ -229,7 +229,15 @@ The `defineConfig()` helper provides type safety and IDE autocomplete for all co
 
 ### 3. Deploy
 
+Before deploying, set the HuggingFace token in your environment:
+
 ```bash
+# Fetch from SSM and export for Docker build
+export HF_TOKEN=$(aws ssm get-parameter \
+  --name "/podwhisperer/hf_token" \
+  --with-decryption \
+  --query Parameter.Value --output text)
+
 pnpm cdk deploy
 ```
 
