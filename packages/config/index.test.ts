@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CaptionsConfigSchema,
+  FillTimingGapsConfigSchema,
   LlmRefinementConfigSchema,
   NormalizationConfigSchema,
   PipelineConfigSchema,
@@ -110,6 +111,22 @@ describe('CaptionsConfigSchema', () => {
   })
 })
 
+describe('FillTimingGapsConfigSchema', () => {
+  it('populates defaults for empty object', () => {
+    const result = FillTimingGapsConfigSchema.parse({})
+
+    expect(result).toEqual({
+      enabled: true,
+    })
+  })
+
+  it('allows overriding enabled to false', () => {
+    const result = FillTimingGapsConfigSchema.parse({ enabled: false })
+
+    expect(result.enabled).toBe(false)
+  })
+})
+
 describe('PipelineConfigSchema', () => {
   it('populates nested defaults for empty object', () => {
     const result = PipelineConfigSchema.parse({})
@@ -122,6 +139,9 @@ describe('PipelineConfigSchema', () => {
       jobTimeoutMinutes: 60,
       skipIfOutputExists: false,
       hfTokenSsmPath: '/podwhisperer/hf_token',
+    })
+    expect(result.fillTimingGaps).toEqual({
+      enabled: true,
     })
     expect(result.replacementRules).toBeUndefined()
     expect(result.llmRefinement).toBeUndefined()

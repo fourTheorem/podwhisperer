@@ -20,6 +20,7 @@ import {
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs'
 import { PipelineConfigSchema } from '@podwhisperer/config'
 import type { EventBridgeEvent } from 'aws-lambda'
+import { fillTimingGaps } from './steps/fill-timing-gaps'
 import { llmRefinement } from './steps/llm-refinement'
 import { applyReplacements } from './steps/replacement'
 import { normalizeSegments } from './steps/segments-normalization'
@@ -166,6 +167,42 @@ const handler = async (event: S3EventBridgeEvent, context: DurableContext) => {
   )
 
   // refining steps
+
+  // Fill timing gaps — fills missing word timestamps before any other processing
+  await context.step('fill-timing-gaps', async () => {
+    if (!pipelineConfig.fillTimingGaps.enabled) {
+      context.logger.info('Fill timing gaps disabled, skipping step')
+      return
+    }
+
+    // Load the transcript from S3
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: transcriptProcessingKey,
+      }),
+    )
+    const bodyStr = await response.Body?.transformToString()
+    if (!bodyStr) {
+      throw new Error('Empty response body from S3')
+    }
+    const transcript = JSON.parse(bodyStr) as WhisperxResult
+
+    // Fill timing gaps
+    const stats = fillTimingGaps(transcript, pipelineConfig.fillTimingGaps)
+
+    // Save the updated transcript back to S3
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: transcriptProcessingKey,
+        Body: JSON.stringify(transcript),
+        ContentType: 'application/json',
+      }),
+    )
+
+    context.logger.info('Filled word timing gaps', { stats })
+  })
 
   // Replacement rules
   await context.step('replacement-rules', async () => {

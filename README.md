@@ -39,6 +39,7 @@ flowchart TD
         CheckExists{Output Exists?}
         SQS[Send to SQS]
         WaitCallback[Wait for Callback]
+        FillGaps[Fill Timing Gaps]
         Replacement[Replacement Rules]
         LLM[LLM Refinement]
         Normalize[Segments Normalization]
@@ -70,7 +71,7 @@ flowchart TD
     CheckExists -->|Yes| Replacement
     Poll --> Download --> Transcribe --> Align --> Diarize --> Upload --> Callback
     Upload --> Raw
-    Callback --> WaitCallback --> Replacement --> LLM --> Normalize --> Finalize --> Captions --> Notify
+    Callback --> WaitCallback --> FillGaps --> Replacement --> LLM --> Normalize --> Finalize --> Captions --> Notify
     Finalize --> Refined
     Captions --> VTT & SRT & JSON
 ```
@@ -88,7 +89,15 @@ The WhisperX container runs on GPU-enabled ECS Managed Instances:
 5. **Diarization** - Identifies and labels different speakers
 6. **Upload** - Saves raw transcript to S3 `output/` prefix
 
-### Step 1: Replacement Rules (Optional)
+### Step 1: Fill Timing Gaps
+
+WhisperX sometimes produces words with missing `start`/`end` timestamps, particularly for words containing numbers or currency symbols (e.g., `"15"`, `"$8"`, `"$0.25"`). This step fills those gaps using character-proportional interpolation between neighboring anchor words, giving all downstream steps clean timing data.
+
+- Gaps are distributed proportionally based on word character length
+- Padding is applied dynamically based on the segment's speech rate
+- Filled words are marked with `score: 0` to distinguish them from original timestamps
+
+### Step 2: Replacement Rules (Optional)
 
 Apply regex or literal string replacements to fix common transcription errors:
 
@@ -101,7 +110,7 @@ Apply regex or literal string replacements to fix common transcription errors:
 }
 ```
 
-### Step 2: LLM Refinement (Optional)
+### Step 3: LLM Refinement (Optional)
 
 Uses Amazon Bedrock to improve transcript quality:
 
@@ -109,7 +118,7 @@ Uses Amazon Bedrock to improve transcript quality:
 - Identifies speakers by name when possible (e.g., "SPEAKER_00" becomes "Luciano")
 - Validates suggestions to prevent aggressive rewrites
 
-### Step 3: Segments Normalization
+### Step 4: Segments Normalization
 
 Splits long transcript segments into caption-friendly chunks:
 
@@ -117,7 +126,7 @@ Splits long transcript segments into caption-friendly chunks:
 - Splits at natural punctuation boundaries
 - Handles speaker changes within segments
 
-### Step 4: Caption Generation
+### Step 5: Caption Generation
 
 Generates multiple caption formats from the refined transcript:
 
@@ -129,7 +138,7 @@ Optional features:
 - Word-by-word highlighting (underline, bold, or italic)
 - Speaker name prefixes (always, when speaker changes, or never)
 
-### Step 5: Notification
+### Step 6: Notification
 
 Sends an EventBridge event when the pipeline completes, including:
 
@@ -269,6 +278,12 @@ The pipeline will automatically trigger and generate outputs in `s3://$BUCKET/ou
 | `jobTimeoutMinutes` | number | `60` | Timeout for transcription job (max: 720 due to SQS limit) |
 | `skipIfOutputExists` | boolean | `false` | Skip transcription if output already exists |
 | `hfTokenSsmPath` | string | `"/podwhisperer/hf_token"` | SSM parameter path for HuggingFace token |
+
+### Fill Timing Gaps
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | `true` | Enable fill-timing-gaps step |
 
 ### Replacement Rules
 
