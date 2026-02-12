@@ -54,7 +54,7 @@ describe('fillTimingGaps', () => {
     const filled = words[1]
     expect(filled.start).toBeDefined()
     expect(filled.end).toBeDefined()
-    expect(filled.score).toBe(0)
+    expect(filled.score).toBeNull()
     expect(filled.start).toBeGreaterThanOrEqual(1)
     expect(filled.end).toBeLessThanOrEqual(2)
     expect(stats.wordsFilled).toBe(1)
@@ -126,7 +126,7 @@ describe('fillTimingGaps', () => {
     expect(filled.start).toBeDefined()
     expect(filled.end).toBeDefined()
     expect(filled.end).toBeLessThanOrEqual(5)
-    expect(filled.score).toBe(0)
+    expect(filled.score).toBeNull()
     expect(stats.gapTypes.end).toBe(1)
   })
 
@@ -147,7 +147,7 @@ describe('fillTimingGaps', () => {
     expect(filled.start).toBeDefined()
     expect(filled.end).toBeDefined()
     expect(filled.start).toBeGreaterThanOrEqual(0)
-    expect(filled.score).toBe(0)
+    expect(filled.score).toBeNull()
     expect(stats.gapTypes.start).toBe(1)
   })
 
@@ -206,8 +206,8 @@ describe('fillTimingGaps', () => {
     const words = getWords(t)
     expect(words[0].start).toBeGreaterThanOrEqual(2)
     expect(words[1].end).toBeLessThanOrEqual(5)
-    expect(words[0].score).toBe(0)
-    expect(words[1].score).toBe(0)
+    expect(words[0].score).toBeNull()
+    expect(words[1].score).toBeNull()
   })
 
   it('allocates time proportional to word length', () => {
@@ -270,7 +270,7 @@ describe('fillTimingGaps', () => {
     // So padding should be skipped and word should use the full interval
     expect(filled.start).toBeDefined()
     expect(filled.end).toBeDefined()
-    expect(filled.score).toBe(0)
+    expect(filled.score).toBeNull()
   })
 
   it('handles zero-duration gap where anchors are the same', () => {
@@ -290,10 +290,10 @@ describe('fillTimingGaps', () => {
     // Left anchor = 1.5, right anchor = 1.5 — zero interval
     expect(filled.start).toBe(1.5)
     expect(filled.end).toBe(1.5)
-    expect(filled.score).toBe(0)
+    expect(filled.score).toBeNull()
   })
 
-  it('sets score to 0 for filled words and leaves existing scores untouched', () => {
+  it('sets score to null for filled words and leaves existing scores untouched', () => {
     const t = transcript([
       {
         start: 0,
@@ -307,7 +307,7 @@ describe('fillTimingGaps', () => {
 
     const words = getWords(t)
     expect(words[0].score).toBe(0.95)
-    expect(words[1].score).toBe(0)
+    expect(words[1].score).toBeNull()
     expect(words[2].score).toBe(0.87)
   })
 
@@ -370,12 +370,12 @@ describe('fillTimingGaps', () => {
     // $8 should be between 'costs' end (11) and 'or' start (12)
     expect(words[2].start).toBeGreaterThanOrEqual(11)
     expect(words[2].end).toBeLessThanOrEqual(12)
-    expect(words[2].score).toBe(0)
+    expect(words[2].score).toBeNull()
 
     // $0.25 should be between 'or' end (12.5) and 'per' start (14)
     expect(words[4].start).toBeGreaterThanOrEqual(12.5)
     expect(words[4].end).toBeLessThanOrEqual(14)
-    expect(words[4].score).toBe(0)
+    expect(words[4].score).toBeNull()
   })
 
   it('returns early when config is disabled', () => {
@@ -416,7 +416,7 @@ describe('fillTimingGaps', () => {
     const filled = words[1]
     expect(filled.end).toBeDefined()
     expect(filled.end).toBeLessThanOrEqual(5)
-    expect(filled.score).toBe(0)
+    expect(filled.score).toBeNull()
     expect(stats.wordsFilled).toBe(1)
   })
 
@@ -439,7 +439,59 @@ describe('fillTimingGaps', () => {
     const filled = words[1]
     expect(filled.start).toBeDefined()
     expect(filled.start).toBeGreaterThanOrEqual(0)
-    expect(filled.score).toBe(0)
+    expect(filled.score).toBeNull()
     expect(stats.wordsFilled).toBe(1)
+  })
+
+  it('clamps partial gap (missing end) to next word start to avoid overlap', () => {
+    // charRate for "ab cd ef" over 0-10 = 10/8 = 1.25 per char
+    // estimated end for "cd" = 3 + 1.25*2 = 5.5, but next word starts at 4
+    // should clamp to 4
+    const t = transcript([
+      {
+        start: 0,
+        end: 10,
+        text: 'ab cd ef',
+        words: [
+          w('ab', 0, 2, 0.9),
+          { word: 'cd', start: 3 } as WhisperxWord,
+          w('ef', 4, 10, 0.8),
+        ],
+      },
+    ])
+
+    const stats = fillTimingGaps(t, enabledConfig)
+
+    const words = getWords(t)
+    expect(stats.wordsFilled).toBe(1)
+    expect(words[1].end).toBeDefined()
+    // Must not exceed the next word's start (4)
+    expect(words[1].end as number).toBeLessThanOrEqual(4)
+  })
+
+  it('clamps partial gap (missing start) to previous word end to avoid overlap', () => {
+    // charRate for "ab cd ef" over 0-10 = 10/8 = 1.25 per char
+    // estimated start for "cd" = 7 - 1.25*2 = 4.5, but previous word ends at 6
+    // should clamp to 6
+    const t = transcript([
+      {
+        start: 0,
+        end: 10,
+        text: 'ab cd ef',
+        words: [
+          w('ab', 0, 6, 0.9),
+          { word: 'cd', end: 7 } as WhisperxWord,
+          w('ef', 8, 10, 0.8),
+        ],
+      },
+    ])
+
+    const stats = fillTimingGaps(t, enabledConfig)
+
+    const words = getWords(t)
+    expect(stats.wordsFilled).toBe(1)
+    expect(words[1].start).toBeDefined()
+    // Must not precede the previous word's end (6)
+    expect(words[1].start as number).toBeGreaterThanOrEqual(6)
   })
 })

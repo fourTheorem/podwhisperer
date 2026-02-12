@@ -68,7 +68,7 @@ flowchart TD
 
     S3Upload --> EB --> CheckExists
     CheckExists -->|No| SQS --> Poll
-    CheckExists -->|Yes| Replacement
+    CheckExists -->|Yes| FillGaps
     Poll --> Download --> Transcribe --> Align --> Diarize --> Upload --> Callback
     Upload --> Raw
     Callback --> WaitCallback --> FillGaps --> Replacement --> LLM --> Normalize --> Finalize --> Captions --> Notify

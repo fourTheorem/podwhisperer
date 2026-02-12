@@ -114,7 +114,7 @@ function distributeGap(
     for (let i = gap.startIdx; i <= gap.endIdx; i++) {
       words[i].start = round3(leftAnchor)
       words[i].end = round3(leftAnchor)
-      words[i].score = 0
+      words[i].score = null
     }
     return
   }
@@ -137,7 +137,7 @@ function distributeGap(
     for (let i = gap.startIdx; i <= gap.endIdx; i++) {
       words[i].start = round3(leftAnchor)
       words[i].end = round3(leftAnchor)
-      words[i].score = 0
+      words[i].score = null
     }
     return
   }
@@ -148,7 +148,7 @@ function distributeGap(
     const duration = paddedInterval * proportion
     words[i].start = round3(cursor)
     words[i].end = round3(cursor + duration)
-    words[i].score = 0
+    words[i].score = null
     cursor += duration
   }
 }
@@ -162,18 +162,31 @@ function fillPartialGaps(
   charRate: number,
 ): number {
   let filled = 0
-  for (const word of words) {
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
     if (word.start !== undefined && word.end === undefined) {
+      const estimated = word.start + charRate * word.word.length
+      const nextStart = words[i + 1]?.start
       word.end = round3(
-        Math.min(word.start + charRate * word.word.length, segment.end),
+        Math.min(
+          estimated,
+          segment.end,
+          ...(nextStart !== undefined ? [nextStart] : []),
+        ),
       )
-      word.score = 0
+      word.score = null
       filled++
     } else if (word.start === undefined && word.end !== undefined) {
+      const estimated = word.end - charRate * word.word.length
+      const prevEnd = words[i - 1]?.end
       word.start = round3(
-        Math.max(word.end - charRate * word.word.length, segment.start),
+        Math.max(
+          estimated,
+          segment.start,
+          ...(prevEnd !== undefined ? [prevEnd] : []),
+        ),
       )
-      word.score = 0
+      word.score = null
       filled++
     }
   }
