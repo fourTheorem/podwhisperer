@@ -236,7 +236,7 @@ describe('fillTimingGaps', () => {
       {
         start: 0,
         end: 100,
-        text: 'a very long sentence with lots of words in it here xxxx',
+        text: 'a xxxx here ',
         words: [w('a', 0, 5, 0.9), w('xxxx'), w('here', 95, 100, 0.8)],
       },
     ])
