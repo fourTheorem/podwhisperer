@@ -70,6 +70,7 @@ podwhisperer/
 │       ├── index.ts             # Lambda handler (durable workflow)
 │       ├── types.ts             # Shared types
 │       ├── steps/               # Pipeline step implementations
+│       │   ├── fill-timing-gaps.ts
 │       │   ├── llm-refinement.ts
 │       │   ├── replacement.ts
 │       │   └── segments-normalization.ts
@@ -100,7 +101,7 @@ podwhisperer/
 2. **Pipeline Lambda** (durable execution) orchestrates the workflow:
    - Sends job to SQS queue
    - Waits for callback from GPU worker
-   - Applies post-processing steps (replacement, LLM, normalization)
+   - Applies post-processing steps (fill timing gaps, replacement, LLM, normalization)
    - Generates captions (VTT, SRT, JSON)
    - Sends EventBridge notification
 3. **GPU Worker** (ECS container on Managed Instances):
@@ -124,7 +125,7 @@ podwhisperer/
 
 **Configuration** (`packages/config/index.ts`):
 - Zod schemas for all pipeline configuration
-- Exported types: `PipelineConfig`, `TranscriptionConfig`, etc.
+- Exported types: `PipelineConfig`, `TranscriptionConfig`, `FillTimingGapsConfig`, etc.
 - Used by both CDK (at synth time) and Lambda (at runtime)
 
 ## Important Implementation Notes

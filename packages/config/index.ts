@@ -137,6 +137,25 @@ export const CaptionsConfigSchema = z.object({
 export type CaptionsConfig = z.infer<typeof CaptionsConfigSchema>
 
 /**
+ * Schema for fill-timing-gaps configuration.
+ * Controls the step that fills missing word timestamps using character-proportional interpolation.
+ */
+export const FillTimingGapsConfigSchema = z.object({
+  /** Whether the fill-timing-gaps step is applied (default: true) */
+  enabled: z.boolean().default(true),
+})
+
+/**
+ * Configuration for fill-timing-gaps step.
+ */
+export type FillTimingGapsConfig = z.infer<typeof FillTimingGapsConfigSchema>
+
+/** Default values for FillTimingGapsConfig */
+const fillTimingGapsDefaults: FillTimingGapsConfig = {
+  enabled: true,
+}
+
+/**
  * Known Whisper model names.
  * Using z.union with literals + z.string() allows known models with autocomplete
  * while still accepting custom/future model names.
@@ -248,25 +267,31 @@ export const PipelineConfigSchema = z.object({
     ...val,
   })),
 
-  /** STEP 1 (OPTIONAL): Replacement rules for text substitution in transcripts */
+  /** STEP 1: Fill timing gaps - fills missing word timestamps using character-proportional interpolation */
+  fillTimingGaps: FillTimingGapsConfigSchema.optional().transform((val) => ({
+    ...fillTimingGapsDefaults,
+    ...val,
+  })),
+
+  /** STEP 2 (OPTIONAL): Replacement rules for text substitution in transcripts */
   replacementRules: z.array(ReplacementRuleSchema).optional(),
 
-  /** STEP 2 (OPTIONAL): LLM-based refinement of the current transcript via Bedrock */
+  /** STEP 3 (OPTIONAL): LLM-based refinement of the current transcript via Bedrock */
   llmRefinement: LlmRefinementConfigSchema.optional(),
 
-  /** STEP 3: Normalization: makes sure the transcript is properly segmented so each segment is readable enough */
+  /** STEP 4: Normalization: makes sure the transcript is properly segmented so each segment is readable enough */
   normalization: NormalizationConfigSchema.optional().transform((val) => ({
     ...normalizationDefaults,
     ...val,
   })),
 
-  /** STEP 4: Caption generation settings */
+  /** STEP 5: Caption generation settings */
   captions: CaptionsConfigSchema.optional().transform((val) => ({
     ...captionsDefaults,
     ...val,
   })),
 
-  /** STEP 5: EventBridge notification on pipeline completion */
+  /** STEP 6: EventBridge notification on pipeline completion */
   notification: NotificationConfigSchema.optional().transform((val) => ({
     ...notificationDefaults,
     ...val,
