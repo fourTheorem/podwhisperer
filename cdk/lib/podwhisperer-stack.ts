@@ -152,7 +152,7 @@ export class PodwhispererStack extends cdk.Stack {
     bucket.grantReadWrite(pipelineLambda, 'output/*')
 
     // Grant Bedrock permissions if LLM refinement is configured
-    // For cross-region inference profiles (e.g., eu.anthropic.claude-sonnet-4-20250514-v1:0),
+    // For cross-region inference profiles (e.g., eu.anthropic.claude-sonnet-4-6),
     // we need permissions on both the inference profile and the underlying foundation model.
     // The geographic prefix (eu., us., apac., global.) is stripped to get the foundation model ID.
     if (pipelineConfig.llmRefinement?.bedrockInferenceProfileId) {

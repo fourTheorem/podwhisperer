@@ -5,11 +5,11 @@
 /**
  * Maps a Bedrock inference profile ID prefix to an AWS region.
  *
- * @param profileId - The Bedrock inference profile ID (e.g., "eu.anthropic.claude-sonnet-4-20250514-v1:0")
+ * @param profileId - The Bedrock inference profile ID (e.g., "eu.anthropic.claude-sonnet-4-6")
  * @returns The AWS region to use for the Bedrock client
  *
  * @example
- * getRegionFromProfileId("eu.anthropic.claude-sonnet-4-20250514-v1:0")
+ * getRegionFromProfileId("eu.anthropic.claude-sonnet-4-6")
  * // => "eu-west-1"
  *
  * getRegionFromProfileId("us.anthropic.claude-3-haiku-20240307-v1:0")

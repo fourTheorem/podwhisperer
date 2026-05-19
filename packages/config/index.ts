@@ -58,7 +58,7 @@ export type SuggestionValidationConfig = z.infer<
 export const LlmRefinementConfigSchema = z.object({
   /** Optional additional context to help the LLM understand domain-specific terms */
   additionalContext: z.string().optional(),
-  /** The inference profile ID to use for refinement. Eg: "eu.anthropic.claude-sonnet-4-20250514-v1:0" */
+  /** The inference profile ID to use for refinement. Eg: "eu.anthropic.claude-sonnet-4-6" */
   bedrockInferenceProfileId: z.string(),
   /** Model configuration parameters for the Bedrock InvokeModel request */
   modelConfig: z

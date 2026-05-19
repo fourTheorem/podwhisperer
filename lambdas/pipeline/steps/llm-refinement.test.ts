@@ -550,7 +550,7 @@ describe('llmRefinement integration', () => {
   }
 
   const defaultConfig = {
-    bedrockModelId: 'test-model',
+    bedrockInferenceProfileId: 'test-model',
     modelConfig: { max_tokens: 64000, temperature: 0.3 },
   }
 
@@ -803,7 +803,7 @@ describe('llmRefinement integration', () => {
     }
 
     const config = {
-      bedrockModelId: 'test-model',
+      bedrockInferenceProfileId: 'test-model',
       additionalContext: 'This is a podcast about parenting in Boston.',
       modelConfig: { max_tokens: 64000, temperature: 0.3 },
     }
@@ -816,6 +816,27 @@ describe('llmRefinement integration', () => {
     const promptText = body.messages[0].content[0].text
     expect(promptText).toContain('This is a podcast about parenting in Boston.')
     expect(promptText).toContain('## Additional Context')
+  })
+
+  it('adds remediation context for Bedrock legacy model access errors', async () => {
+    const legacyError = new Error(
+      'Access denied. This Model is marked by provider as Legacy and you have not been actively using the model in the last 30 days. Please upgrade to an active model on Amazon Bedrock',
+    )
+    const mockClient = {
+      send: vi.fn().mockRejectedValue(legacyError),
+    } as unknown as BedrockRuntimeClient
+
+    const transcript = {
+      segments: [
+        { start: 0.0, end: 2.0, text: 'hello', speaker: 'SPEAKER_00' },
+      ],
+    }
+
+    await expect(
+      llmRefinement(transcript, defaultConfig, mockClient),
+    ).rejects.toThrow(
+      'Update llmRefinement.bedrockInferenceProfileId to an active Bedrock inference profile',
+    )
   })
 
   it('does not include additional context section when not provided', async () => {
@@ -984,7 +1005,13 @@ describe('llmRefinement integration', () => {
 
     const configWithDisabledValidation = {
       ...defaultConfig,
-      suggestionValidation: { enabled: false },
+      suggestionValidation: {
+        enabled: false,
+        maxWordChangeRatio: 0.4,
+        maxNormalizedEditDistance: 0.5,
+        maxConsecutiveChanges: 3,
+        minWordsForRatioCheck: 5,
+      },
     }
 
     const stats = await llmRefinement(

@@ -160,3 +160,12 @@ __pycache__/
 # other
 TODO.txt
 .tmp/
+
+.DS_Store
+.aws-sam/
+.codex/
+.ipynb_checkpoints/
+.local.env.json
+AGENTS.md
+samconfig.toml
+

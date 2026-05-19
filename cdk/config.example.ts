@@ -82,7 +82,7 @@ export default defineConfig({
     },
   ],
   llmRefinement: {
-    bedrockInferenceProfileId: 'eu.anthropic.claude-sonnet-4-20250514-v1:0',
+    bedrockInferenceProfileId: 'eu.anthropic.claude-sonnet-4-6',
     modelConfig: {
       temperature: 0.8,
     },
