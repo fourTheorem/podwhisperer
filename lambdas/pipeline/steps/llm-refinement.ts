@@ -13,6 +13,7 @@ corrected words, then intelligently merges/splits timing data.
 import {
   type BedrockRuntimeClient,
   InvokeModelCommand,
+  type InvokeModelCommandOutput,
 } from '@aws-sdk/client-bedrock-runtime'
 import type { LlmRefinementConfig } from '@podwhisperer/config'
 import type {
@@ -34,6 +35,33 @@ import {
 
 // Re-export for test compatibility
 export { reconcileSegment, reconstructText, textToWords }
+
+const ACTIVE_BEDROCK_INFERENCE_PROFILE_EXAMPLE =
+  'eu.anthropic.claude-sonnet-4-6'
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
+function isLegacyModelAccessDenied(error: unknown): boolean {
+  const message = getErrorMessage(error)
+  return (
+    /access\s*denied/i.test(message) &&
+    /marked by provider as Legacy/i.test(message) &&
+    /upgrade to an active model/i.test(message)
+  )
+}
+
+function createLegacyModelError(profileId: string, error: unknown): Error {
+  return new Error(
+    `Bedrock denied invocation for "${profileId}" because the provider marked the model as legacy. ` +
+      `Update llmRefinement.bedrockInferenceProfileId to an active Bedrock inference profile, ` +
+      `for example "${ACTIVE_BEDROCK_INFERENCE_PROFILE_EXAMPLE}", then redeploy the CDK stack. ` +
+      `Original Bedrock error: ${getErrorMessage(error)}`,
+    { cause: error },
+  )
+}
 
 const REFINEMENT_PROMPT_TEMPLATE = `You are a transcript editor. Your task is to fix ONLY obvious transcription errors - words that were clearly misheard or misspelled by the speech-to-text system.
 
@@ -162,7 +190,15 @@ export async function llmRefinement(
   })
 
   const startTime = Date.now()
-  const modelResponse = await bedrockClient.send(invokeCommand)
+  let modelResponse: InvokeModelCommandOutput
+  try {
+    modelResponse = await bedrockClient.send(invokeCommand)
+  } catch (error) {
+    if (isLegacyModelAccessDenied(error)) {
+      throw createLegacyModelError(config.bedrockInferenceProfileId, error)
+    }
+    throw error
+  }
   stats.llmResponseTimeMs = Date.now() - startTime
 
   const raw = await modelResponse.body.transformToString('utf8')

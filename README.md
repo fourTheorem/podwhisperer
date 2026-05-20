@@ -224,7 +224,7 @@ export default defineConfig({
     maxSpeakers: 4,
   },
   llmRefinement: {
-    bedrockInferenceProfileId: 'eu.anthropic.claude-sonnet-4-20250514-v1:0',
+    bedrockInferenceProfileId: 'eu.anthropic.claude-sonnet-4-6',
     additionalContext: 'This is a tech podcast about AWS and serverless.',
   },
   captions: {
@@ -299,7 +299,7 @@ Array of replacement rules, each with:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `bedrockInferenceProfileId` | string | required | Bedrock inference profile (e.g., `"eu.anthropic.claude-sonnet-4-20250514-v1:0"`) |
+| `bedrockInferenceProfileId` | string | required | Bedrock inference profile (e.g., `"eu.anthropic.claude-sonnet-4-6"`) |
 | `additionalContext` | string | - | Context to help the LLM understand domain-specific terms |
 | `modelConfig.max_tokens` | number | `64000` | Maximum tokens in response |
 | `modelConfig.temperature` | number | `0.2` | Model temperature |
